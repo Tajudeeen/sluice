@@ -12,7 +12,7 @@
 // so the agent and the frontend can discover the deployed addresses, and so
 // `verify.ts` knows what to verify without re-deriving anything.
 
-import { ethers } from "hardhat";
+import { ethers } from "ethers";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -36,9 +36,20 @@ function distribution(): { addr: string; amount: bigint }[] {
 }
 
 async function main() {
-  const hre = await import("hardhat");
+  const hre: any = await import("hardhat");
   const networkName = hre.network.name;
-  const [deployer] = await ethers.getSigners();
+  const [deployer] = await hre.ethers.getSigners();
+
+  // Fail fast (with a clear message) if the deployer has no gas, instead of
+  // hanging on a tx that can never be mined.
+  const bal = await hre.ethers.provider.getBalance(deployer.address);
+  const minGas = ethers.parseEther("0.01");
+  if (bal < minGas) {
+    throw new Error(
+      `Deployer ${deployer.address} has ${ethers.formatEther(bal)} BOT — insufficient for gas on '${networkName}'. ` +
+        `Fund it and retry. (Aborting rather than hanging on an unmineable tx.)`
+    );
+  }
 
   // Resolve the attester account (the single authorized signer in v1).
   // Prefer an explicit ATTESTER_PRIVATE_KEY so the deployed registry's attester
@@ -48,7 +59,7 @@ async function main() {
   if (process.env.ATTESTER_PRIVATE_KEY) {
     attesterAddr = new ethers.Wallet(process.env.ATTESTER_PRIVATE_KEY).address;
   } else if (networkName === "hardhat" || networkName === "localhost") {
-    const signers = await ethers.getSigners();
+    const signers = await hre.ethers.getSigners();
     attesterAddr = signers[1].address;
   } else {
     const accounts = (hre.network.config.accounts as string[]) || [];
@@ -60,19 +71,19 @@ async function main() {
   console.log(`Attester: ${attesterAddr}`);
 
   // 1) Registry
-  const Registry = await ethers.getContractFactory("AttesterRegistry");
+  const Registry = await hre.ethers.getContractFactory("AttesterRegistry");
   const registry = await Registry.deploy(attesterAddr);
   await registry.waitForDeployment();
   console.log(`AttesterRegistry: ${await registry.getAddress()}`);
 
   // 2) Asset (constructor requires a non-zero initialAttester)
-  const Asset = await ethers.getContractFactory("SluiceAsset");
+  const Asset = await hre.ethers.getContractFactory("SluiceAsset");
   const asset = await Asset.deploy(ASSET_NAME, ASSET_SYMBOL, attesterAddr);
   await asset.waitForDeployment();
   console.log(`SluiceAsset: ${await asset.getAddress()}`);
 
   // 3) Gate
-  const Gate = await ethers.getContractFactory("SluiceGate");
+  const Gate = await hre.ethers.getContractFactory("SluiceGate");
   const gate = await Gate.deploy(await asset.getAddress(), await registry.getAddress(), TIMEOUT);
   await gate.waitForDeployment();
   console.log(`SluiceGate: ${await gate.getAddress()}`);
@@ -88,9 +99,9 @@ async function main() {
   if (DEMO_HOLDERS_ENV.length >= dist.length) {
     targets = DEMO_HOLDERS_ENV.slice(0, dist.length);
   } else if (networkName === "hardhat" || networkName === "localhost") {
-    const signers = await ethers.getSigners();
+    const signers = await hre.ethers.getSigners();
     // signers[3..8] -> alice, bob, carol, dave, eve, stranger (mirrors the tests)
-    targets = signers.slice(3, 3 + dist.length).map((s) => s.address);
+    targets = signers.slice(3, 3 + dist.length).map((s: any) => s.address);
   } else {
     console.warn(
       "No DEMO_HOLDERS set and not on a local network — minting the entire supply to the deployer. " +

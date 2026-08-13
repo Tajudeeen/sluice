@@ -9,12 +9,10 @@ require("@nomicfoundation/hardhat-chai-matchers");
 require("@nomicfoundation/hardhat-verify");
 
 const botRpc = process.env.BOT_RPC_URL || "https://rpc.botchain.ai/";
-const deployerKey =
-  process.env.DEPLOYER_PRIVATE_KEY ||
-  "0xcf29654b8250b9ad31cca27191def490d2734b8257acb0b202d88c632e89a2aa";
-const attesterKey =
-  process.env.ATTESTER_PRIVATE_KEY ||
-  "0x921b6717d892601367ea6c37e33743e13e07ed613f357ae064da1e343c11f1af";
+// Keys MUST come from the environment. No hardcoded fallbacks (avoids shipping
+// bogus/placeholder keys and makes missing-config failures explicit).
+const deployerKey = process.env.DEPLOYER_PRIVATE_KEY;
+const attesterKey = process.env.ATTESTER_PRIVATE_KEY;
 
 /** @type {import('hardhat/config').HardhatUserConfig} */
 module.exports = {
