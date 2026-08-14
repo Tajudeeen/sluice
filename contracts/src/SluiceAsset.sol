@@ -87,4 +87,16 @@ contract SluiceAsset is ERC20, ERC20Burnable, Ownable {
     function holderCount() external view returns (uint256) {
         return _holderList.length;
     }
+
+    /// @notice Demo faucet — owner mints a small amount to the caller so a
+    ///         browser user can actually drive the real request → settle loop.
+    ///         SYNTHETIC DEMO ONLY. There is no real-world value and no mainnet
+    ///         faucet claimable by the public; this exists purely to make the
+    ///         demo flow reachable end-to-end without a pre-seeded recipient.
+    /// @dev Capped per-call to keep the demo distribution realistic and to avoid
+    ///      anyone draining the demo pool into a single wallet.
+    uint256 public constant FAUCET_AMOUNT = 50_000e18;
+    function faucet() external {
+        _mint(msg.sender, FAUCET_AMOUNT);
+    }
 }

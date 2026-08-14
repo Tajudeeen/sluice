@@ -26,6 +26,7 @@ export const ASSET_ABI = [
   "function decimals() view returns (uint8)",
   "function approve(address spender, uint256 amount) returns (bool)",
   "function allowance(address owner, address spender) view returns (uint256)",
+  "function faucet()",
 ] as const;
 
 // ---- SluiceGate (minimal) ----
@@ -83,4 +84,14 @@ export function explorerTx(hash: string): string {
 
 export function explorerAddr(addr: string): string {
   return `${EXPLORER_URL.replace(/\/$/, "")}/address/${addr}`;
+}
+
+// Format a raw token balance (18 decimals) to a human string.
+export function fmt(b: bigint): string {
+  try {
+    const v = Number(b >= 0n ? b : 0n);
+    return (v / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  } catch {
+    return "0";
+  }
 }

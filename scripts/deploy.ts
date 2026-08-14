@@ -30,10 +30,31 @@ const DEMO_HOLDERS_ENV = (process.env.DEMO_HOLDERS || "")
   .filter(Boolean);
 
 function distribution(): { addr: string; amount: bigint }[] {
-  // Uneven, realistic-looking split.
-  const weights = [350000, 250000, 150000, 100000, 50000, 100000];
-  return weights.map((w) => ({ addr: "", amount: ethers.parseUnits(String(w), 18) }));
+  // Healthy, uneven base distribution (1,000,000 SLUSD across 6 holders).
+  // Holder A = signers[3] is the largest at 35% so the base pool HHI is a
+  // healthy ~0.21 (matches the spec's demo math: BEFORE HHI 0.21, largest 35%).
+  const w = [350000, 150000, 100000, 100000, 100000, 200000];
+  return w.map((x) => ({ addr: "", amount: ethers.parseUnits(String(x), 18) }));
 }
+
+// Predefined SYNTHETIC demo-attacker wallet for the "concentration attack"
+// simulator. This is Hardhat's well-known test account #1 — it controls NO real
+// funds and ONLY ever holds synthetic SLUSD. The frontend simulator uses this
+// key to originate a REAL on-chain attack request (so the resulting BLOCK is
+// verifiable on-chain), exactly as the spec requires (§25). It is never the
+// attester, never touches mainnet funds, and is clearly labeled synthetic.
+export const DEMO_ATTACKER_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+export const DEMO_ATTACKER_ADDRESS = new ethers.Wallet(DEMO_ATTACKER_KEY).address;
+// The attack CONSOLIDATES the attacker's stake into the largest holder (holder A
+// = Hardhat signer #3), pushing that holder past the 50% largest-holder hard
+// block. This is a fixed, predefined target (never arbitrary addresses — §28).
+// Resolved to the actual deployed holder A address at deploy time.
+export let DEMO_ATTACK_TARGET = "0x00000000000000000000000000000000deadbeef";
+// The attack transfers this much synthetic SLUSD, calibrated so that after
+// consolidation the largest holder crosses 50% (see README "Demo math"):
+// holder A starts at 350k/1M (35%); attacker (500k) sends 450k to A => A = 800k
+// of 1.5M = 53% => deterministic hard block (largest holder >= 50%).
+export const ATTACK_AMOUNT = ethers.parseUnits("450000", 18);
 
 async function main() {
   const hre: any = await import("hardhat");
@@ -96,12 +117,17 @@ async function main() {
   // 4) Seed the demo distribution.
   const dist = distribution();
   let targets: string[];
+  let holderA: string | undefined;
   if (DEMO_HOLDERS_ENV.length >= dist.length) {
     targets = DEMO_HOLDERS_ENV.slice(0, dist.length);
+    holderA = targets[0];
   } else if (networkName === "hardhat" || networkName === "localhost") {
     const signers = await hre.ethers.getSigners();
-    // signers[3..8] -> alice, bob, carol, dave, eve, stranger (mirrors the tests)
+    // signers[3..8] -> alice, bob, carol, dave, eve, stranger (mirrors the tests).
+    // Holder A (signers[3]) is the largest at 35% and is the attack's consolidation
+    // target (a fixed, predefined address — never arbitrary, see §28).
     targets = signers.slice(3, 3 + dist.length).map((s: any) => s.address);
+    holderA = signers[3].address;
   } else {
     console.warn(
       "No DEMO_HOLDERS set and not on a local network — minting the entire supply to the deployer. " +
@@ -109,6 +135,8 @@ async function main() {
     );
     targets = [deployer.address];
   }
+  // Pin the attack target to the deployed largest holder (holder A).
+  if (holderA) DEMO_ATTACK_TARGET = holderA;
 
   let minted = 0n;
   for (let i = 0; i < dist.length; i++) {
@@ -123,6 +151,17 @@ async function main() {
     const tx = await asset.mint(deployer.address, remainder);
     await tx.wait();
     console.log(`  minted remaining ${ethers.formatUnits(remainder, 18)} SLUSD -> ${deployer.address}`);
+  }
+
+  // Seed the SYNTHETIC demo-attacker wallet (Hardhat test account #1) so the
+  // concentration-attack simulator can originate a REAL on-chain request that
+  // breaches the HHI hard-block. Synthetic SLUSD only — no real value.
+  // 500k of the 1.5M pool; the attack sends 450k into holder A, pushing A past 50%.
+  const attackSeed = ethers.parseUnits("500000", 18);
+  {
+    const tx = await asset.mint(DEMO_ATTACKER_ADDRESS, attackSeed);
+    await tx.wait();
+    console.log(`  minted ${ethers.formatUnits(attackSeed, 18)} SLUSD -> DEMO_ATTACKER ${DEMO_ATTACKER_ADDRESS}`);
   }
 
   console.log(`Total supply: ${ethers.formatUnits(await asset.totalSupply(), 18)} SLUSD`);
@@ -155,6 +194,19 @@ async function main() {
   console.log(`VITE_GATE_ADDRESS=${await gate.getAddress()}`);
   console.log(`VITE_ATTESTER_ADDRESS=${attesterAddr}`);
   console.log(`VITE_CHAIN_ID=${hre.network.config.chainId}`);
+  if (hre.network.name === "hardhat" || hre.network.name === "localhost") {
+    console.log(`VITE_DEMO_ATTACKER_KEY=${DEMO_ATTACKER_KEY}`);
+    console.log(`VITE_DEMO_ATTACK_TARGET=${DEMO_ATTACK_TARGET}`);
+  }
+  console.log(`--- .env (agent + simulator) ---`);
+  console.log(`ATTESTER_PRIVATE_KEY=${process.env.ATTESTER_PRIVATE_KEY || "(set this)"}`);
+  console.log(`SLUICE_GATE_ADDRESS=${await gate.getAddress()}`);
+  console.log(`SLUICE_ASSET_ADDRESS=${await asset.getAddress()}`);
+  if (hre.network.name === "hardhat" || hre.network.name === "localhost") {
+    console.log(`# SYNTHETIC demo-attacker key (Hardhat test account #1) for the concentration-attack simulator only.`);
+    console.log(`SLUICE_DEMO_ATTACKER_KEY=${DEMO_ATTACKER_KEY}`);
+    console.log(`SLUICE_DEMO_ATTACK_TARGET=${DEMO_ATTACK_TARGET}`);
+  }
 }
 
 main()

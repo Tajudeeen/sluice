@@ -96,6 +96,34 @@ agent (see `.env.example`). The agent reads `.env` via `dotenv`. To exercise the
 review band, set `ANTHROPIC_API_KEY` — without it the system runs a deterministic
 fallback and labels itself `INSUFFICIENT_DATA` honestly.
 
+## Local end-to-end demo (the real loop)
+
+Everything below is a REAL on-chain transaction on a local Hardhat node — no mocks.
+
+```bash
+# 1) start a local node
+npx hardhat node --hostname 127.0.0.1 --port 8545
+# 2) in another shell: deploy + seed a healthy demo pool, print .env lines
+npm run deploy:local
+# 3) run the attester agent (paste the ATTESTER_*/SLUICE_* lines from step 2 into .env)
+npm run agent
+# 4) drive the two required flows + read back on-chain state
+npx tsx scripts/demo-local.ts && npx tsx scripts/check-status.ts
+# 5) (optional) open the UI — connect a wallet, use the faucet, try the live forms
+npm run frontend   # http://localhost:5173
+```
+
+### Demo math (why the attack actually breaches)
+- Base pool: 1,000,000 SLUSD across 6 holders, largest = **35%** (HHI ≈ 0.21, healthy).
+- Synthetic demo-attacker (Hardhat account #1, no real funds) is seeded **500,000 SLUSD**.
+- Concentration attack: the attacker transfers **450,000 SLUSD** into the largest holder
+  (a fixed, predefined target — never an arbitrary address). After: that holder owns
+  800k of 1.5M = **53%** → deterministic hard-block (`LARGEST_HOLDER_LIMIT`, ≥50%).
+- NORMAL flow: a small transfer to a fresh address keeps the pool healthy → **APPROVE**.
+
+Verified run (see `docs/PROOF-local-e2e.md`): req #1 APPROVE (score 13), req #2 BLOCK
+(hard block, projected top holder 51.6% ≥ 50%). Settlement/refund tx hashes are in the proof file.
+
 ## Tests
 
 ```bash
@@ -107,6 +135,8 @@ npm run test:agent  # Vitest agent tests (16) — HHI/liquidity/anomaly math + d
 
 ```bash
 # set BOT_RPC_URL / DEPLOYER_PRIVATE_KEY / ATTESTER_PRIVATE_KEY in .env
+# IMPORTANT: the deployer key MUST hold BOT for gas — the script aborts cleanly
+# if its balance is 0 (it will NOT hang on an unmineable tx).
 npm run deploy:bot
 npm run verify:bot
 ```
