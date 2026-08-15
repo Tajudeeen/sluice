@@ -1,4 +1,4 @@
-// RiskPanel — transparent component scores (spec §16 / §21).
+// RiskPanel: transparent component scores (spec §16 / §21).
 // Shows concentration / liquidity / anomaly + overall deterministic score.
 export interface RiskBreakdown {
   concentration: number;

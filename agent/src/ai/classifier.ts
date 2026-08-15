@@ -1,6 +1,6 @@
 import type { AiContext, PoolSnapshot, ProposedTx, RiskAssessment } from "../types";
 
-// AI CONTEXT LAYER — server-side ONLY.
+// AI CONTEXT LAYER: server-side ONLY.
 //
 // This module calls an LLM to classify the BEHAVIORAL CONTEXT of a proposed
 // transaction. It is a contextual intelligence layer, NOT a transaction signer.

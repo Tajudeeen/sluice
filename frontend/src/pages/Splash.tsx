@@ -14,14 +14,14 @@ export default function Splash() {
       <section className="hero-splash">
         <div className="eyebrow">AI-native · on-chain · BOT Chain</div>
         <h1>
-          <span className="grad-text">Sluice</span> — the execution firewall
+          <span className="grad-text">Sluice</span>: the execution firewall
           <br /> for tokenized assets.
         </h1>
         <p className="lede">
           Every transfer or redemption of <b>{SLUICE_META.assetSymbol}</b> is{" "}
           <b>locked first, evaluated second, settled last</b>. A deterministic risk
           engine and an AI contextual layer score the move; an authorized attester
-          releases only what is safe. There is no bypass — the chain is the final
+          releases only what is safe. There is no bypass: the chain is the final
           authority.
         </p>
         <div className="cta-row">
@@ -43,7 +43,7 @@ export default function Splash() {
         <Pillar
           k="01"
           t="Locked, not sent"
-          d="Funds are escrowed in the gate the instant a request opens. The token itself rejects direct transfers — only the firewall moves supply."
+          d="Funds are escrowed in the gate the instant a request opens. The token itself rejects direct transfers: only the firewall moves supply."
         />
         <Pillar
           k="02"
@@ -60,7 +60,7 @@ export default function Splash() {
       <section className="band">
         <h2>Why a firewall, not a multisig?</h2>
         <p>
-          Multisigs gate <i>who</i> can act. Sluice gates <i>what</i> may happen —
+          Multisigs gate <i>who</i> can act. Sluice gates <i>what</i> may happen -
           per transaction, against live pool state, with policy you can read in one
           file. It stops a compromised key or a reckless signer from concentrating
           supply or draining liquidity, even if they hold the keys.

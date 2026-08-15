@@ -8,10 +8,10 @@ import DecisionBreakdown from "./DecisionBreakdown";
 import { project, type Projection } from "../lib/projection";
 import { ATTACK_AMOUNT, DEMO_ATTACK_TARGET, DEMO_ATTACKER_ADDRESS } from "../demoAttack";
 
-// ScenarioSimulator — the demo centerpiece (spec §25).
+// ScenarioSimulator: the demo centerpiece (spec §25).
 //
 // IMPORTANT (honesty rule): this does NOT simulate in frontend state. It uses a
-// SYNTHETIC, predefined demo-attacker wallet (Hardhat test account #1 — no real
+// SYNTHETIC, predefined demo-attacker wallet (Hardhat test account #1: no real
 // funds, only synthetic SLUSD) to originate a REAL on-chain requestTransfer
 // through the live gate. The attester agent then evaluates it and the gate
 // produces a REAL BLOCK, verifiable on-chain via the explorer link.
@@ -59,7 +59,7 @@ export default function ScenarioSimulator({ pool }: { pool: { holders: { address
       <p className="muted">
         Runs the <b>actual</b> Sluice pipeline: a synthetic demo attacker (predefined wallet, synthetic SLUSD only)
         sends a large transfer that would push the pool past the concentration hard-block. This is a REAL on-chain
-        request — the resulting BLOCK is verifiable in the explorer, not faked in the UI.
+        request: the resulting BLOCK is verifiable in the explorer, not faked in the UI.
       </p>
       <div className="sim-grid">
         <div className="sim-controls">
@@ -71,7 +71,7 @@ export default function ScenarioSimulator({ pool }: { pool: { holders: { address
           <button className="danger big" onClick={run} disabled={busy || !pool.totalSupply}>
             {busy ? "Executing on-chain…" : "Simulate Concentration Attack"}
           </button>
-          {txHash && <p className="ok"><a href={explorerTx(txHash)} target="_blank" rel="noreferrer">Attack tx ↗ — agent will BLOCK it</a></p>}
+          {txHash && <p className="ok"><a href={explorerTx(txHash)} target="_blank" rel="noreferrer">Attack tx ↗: agent will BLOCK it</a></p>}
           {error && <p className="err">{error}</p>}
         </div>
         {preview && (

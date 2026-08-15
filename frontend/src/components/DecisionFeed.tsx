@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 import { REQUEST_STATUS, type RequestView } from "../lib/types";
 
-// DecisionFeed — live recent requests settled through the gate (spec §22/§23).
+// DecisionFeed: live recent requests settled through the gate (spec §22/§23).
 // Reads from the on-chain gate so the list always reflects real state.
 export default function DecisionFeed({ requests }: { requests: RequestView[] }) {
   if (requests.length === 0) {

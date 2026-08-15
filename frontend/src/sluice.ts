@@ -74,7 +74,7 @@ export function computeHHI(holders: { balance: bigint }[], totalSupply: bigint):
 }
 
 export function shortAddr(a: string): string {
-  if (!a) return "—";
+  if (!a) return " -";
   return a.slice(0, 6) + "…" + a.slice(-4);
 }
 

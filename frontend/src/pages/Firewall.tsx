@@ -87,7 +87,7 @@ export default function Firewall() {
         <p>
           Every transfer or redemption of <b>{SLUICE_META.assetSymbol}</b> is <b>locked first, evaluated second</b>.
           A deterministic risk engine + an AI contextual layer score the move; an authorized attester releases only
-          what is safe. Direct token transfers are rejected by the asset — there is no bypass around the firewall.
+          what is safe. Direct token transfers are rejected by the asset: there is no bypass around the firewall.
         </p>
       </section>
 
@@ -107,7 +107,7 @@ export default function Firewall() {
           <PoolOverview pool={pool} risk={risk} />
         ) : (
           <section className="card pool">
-            <h2>Pool — {SLUICE_META.assetName} ({SLUICE_META.assetSymbol})</h2>
+            <h2>Pool: {SLUICE_META.assetName} ({SLUICE_META.assetSymbol})</h2>
             <p className="warn">No deployed contract addresses in this build. Set VITE_GATE_ADDRESS / VITE_ASSET_ADDRESS (copy from scripts/deploy.ts output) and rebuild.</p>
           </section>
         )}
@@ -142,7 +142,7 @@ export default function Firewall() {
       </main>
 
       <footer className="foot">
-        <span>Sluice — synthetic demo (SLUSD is NOT a real-world asset). The blockchain is the final enforcement point.</span>
+        <span>Sluice: synthetic demo (SLUSD is NOT a real-world asset). The blockchain is the final enforcement point.</span>
       </footer>
     </div>
   );

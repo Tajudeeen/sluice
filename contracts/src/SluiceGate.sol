@@ -10,7 +10,7 @@ import {AttesterRegistry} from "./AttesterRegistry.sol";
 /// @title SluiceGate
 /// @notice The on-chain execution firewall. Locks funds, emits a request event,
 ///         and only releases/refunds after an authorized attester submits a valid
-///         EIP-712 attestation. The gate is the FINAL enforcement point — off-chain
+///         EIP-712 attestation. The gate is the FINAL enforcement point: off-chain
 ///         data (including AI output) can never directly mutate contract state.
 contract SluiceGate is ReentrancyGuard, EIP712 {
     // ---- Enums (also mirrored as uint8 in EIP-712) ----

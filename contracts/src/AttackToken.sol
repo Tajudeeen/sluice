@@ -6,7 +6,7 @@ pragma solidity ^0.8.24;
 ///         token attempts to re-enter the gate (calling block() on a second, still
 ///         pending request). The gate's `nonReentrant` modifier must revert that
 ///         inner call. We catch the revert so the legitimate outer settlement still
-///         completes — proving the guard prevents a second mutation while not
+///         completes: proving the guard prevents a second mutation while not
 ///         corrupting the primary settlement.
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SluiceGate} from "./SluiceGate.sol";

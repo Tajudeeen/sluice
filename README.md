@@ -12,7 +12,7 @@ redemption is **locked first, evaluated second, settled last**:
    **AI contextual classifier**.
 3. The agent signs an **EIP-712 attestation** (approve / block) with the authorized
    attester key and submits it to the gate.
-4. The **gate is the final enforcement point** — it re-checks the attester signature,
+4. The **gate is the final enforcement point**: it re-checks the attester signature,
    replay, expiry, and request state before releasing or refunding. If the agent is
    unavailable past `timeout`, anyone may call `timeoutRelease` to refund the user.
 
@@ -39,17 +39,17 @@ any real-world asset.
                    │ decide() → signTypedData
                    ▼
             ┌──────────────┐
-            │  SluiceGate  │  approve()/blockRequest()  — verifies attester + expiry + replay
+            │  SluiceGate  │  approve()/blockRequest() : verifies attester + expiry + replay
             └──────────────┘
 ```
 
-- `contracts/src/SluiceGate.sol` — the firewall (lock → attest → settle/refund, timeout refund).
-- `contracts/src/SluiceAsset.sol` — synthetic gated asset (direct transfers rejected).
-- `contracts/src/AttesterRegistry.sol` — single authorized attester (upgrade path to N-of-M).
-- `contracts/src/AttackToken.sol` — test-only reentrancy probe.
-- `agent/src/` — deterministic risk engine (`risk/*`), AI classifier (`ai/`), decision
+- `contracts/src/SluiceGate.sol`: the firewall (lock → attest → settle/refund, timeout refund).
+- `contracts/src/SluiceAsset.sol`: synthetic gated asset (direct transfers rejected).
+- `contracts/src/AttesterRegistry.sol`: single authorized attester (upgrade path to N-of-M).
+- `contracts/src/AttackToken.sol`: test-only reentrancy probe.
+- `agent/src/`: deterministic risk engine (`risk/*`), AI classifier (`ai/`), decision
   engine (`decision/`), and the runtime `listener.ts` that watches + settles.
-- `frontend/` — Vite + React + wagmi demo UI (read pool state, submit requests).
+- `frontend/`: Vite + React + wagmi demo UI (read pool state, submit requests).
 
 ## Risk model (transparent, auditable)
 
@@ -66,7 +66,7 @@ Policy bands (`agent/src/config.ts`, all tunable in ONE place):
 - **Hard block (deterministic, LLM cannot override):** projected HHI ≥ 0.35, projected
   largest holder ≥ 50%, post-redemption liquidity < 20%, or anomaly score ≥ 85.
 - **0–39 → APPROVE** (no AI needed).
-- **40–69 → REVIEW** — an AI contextual signal *may* tip a clearly-suspect pattern to
+- **40–69 → REVIEW**: an AI contextual signal *may* tip a clearly-suspect pattern to
   BLOCK, but cannot flip a deterministic block to approve.
 - **70–100 → BLOCK.**
 
@@ -93,12 +93,12 @@ npm run frontend                 # http://localhost:5173
 
 Set `SLUICE_GATE_ADDRESS`, `SLUICE_ASSET_ADDRESS`, and `ATTESTER_PRIVATE_KEY` for the
 agent (see `.env.example`). The agent reads `.env` via `dotenv`. To exercise the AI
-review band, set `ANTHROPIC_API_KEY` — without it the system runs a deterministic
+review band, set `ANTHROPIC_API_KEY`: without it the system runs a deterministic
 fallback and labels itself `INSUFFICIENT_DATA` honestly.
 
 ## Local end-to-end demo (the real loop)
 
-Everything below is a REAL on-chain transaction on a local Hardhat node — no mocks.
+Everything below is a REAL on-chain transaction on a local Hardhat node: no mocks.
 
 ```bash
 # 1) start a local node
@@ -109,7 +109,7 @@ npm run deploy:local
 npm run agent
 # 4) drive the two required flows + read back on-chain state
 npx tsx scripts/demo-local.ts && npx tsx scripts/check-status.ts
-# 5) (optional) open the UI — connect a wallet, use the faucet, try the live forms
+# 5) (optional) open the UI: connect a wallet, use the faucet, try the live forms
 npm run frontend   # http://localhost:5173
 ```
 
@@ -117,7 +117,7 @@ npm run frontend   # http://localhost:5173
 - Base pool: 1,000,000 SLUSD across 6 holders, largest = **35%** (HHI ≈ 0.21, healthy).
 - Synthetic demo-attacker (Hardhat account #1, no real funds) is seeded **500,000 SLUSD**.
 - Concentration attack: the attacker transfers **450,000 SLUSD** into the largest holder
-  (a fixed, predefined target — never an arbitrary address). After: that holder owns
+  (a fixed, predefined target: never an arbitrary address). After: that holder owns
   800k of 1.5M = **53%** → deterministic hard-block (`LARGEST_HOLDER_LIMIT`, ≥50%).
 - NORMAL flow: a small transfer to a fresh address keeps the pool healthy → **APPROVE**.
 
@@ -127,15 +127,15 @@ Verified run (see `docs/PROOF-local-e2e.md`): req #1 APPROVE (score 13), req #2 
 ## Tests
 
 ```bash
-npm test            # Hardhat contract tests (24) — firewall, gating, reentrancy, timeout
-npm run test:agent  # Vitest agent tests (16) — HHI/liquidity/anomaly math + decision bands
+npm test            # Hardhat contract tests (24): firewall, gating, reentrancy, timeout
+npm run test:agent  # Vitest agent tests (16): HHI/liquidity/anomaly math + decision bands
 ```
 
 ## Deploy to BOT Chain (chainId 677)
 
 ```bash
 # set BOT_RPC_URL / DEPLOYER_PRIVATE_KEY / ATTESTER_PRIVATE_KEY in .env
-# IMPORTANT: the deployer key MUST hold BOT for gas — the script aborts cleanly
+# IMPORTANT: the deployer key MUST hold BOT for gas: the script aborts cleanly
 # if its balance is 0 (it will NOT hang on an unmineable tx).
 npm run deploy:bot
 npm run verify:bot
@@ -150,5 +150,5 @@ npm run verify:bot
 ## Disclaimer
 
 Sluice is a demo. `SLUSD` is synthetic and not a real-world asset. The single-attester
-model is v1 (owner-controlled registry) — the upgrade path to N-of-M attester quorum is
+model is v1 (owner-controlled registry): the upgrade path to N-of-M attester quorum is
 isolated by design.

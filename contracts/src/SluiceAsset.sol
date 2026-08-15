@@ -88,7 +88,7 @@ contract SluiceAsset is ERC20, ERC20Burnable, Ownable {
         return _holderList.length;
     }
 
-    /// @notice Demo faucet — owner mints a small amount to the caller so a
+    /// @notice Demo faucet: owner mints a small amount to the caller so a
     ///         browser user can actually drive the real request → settle loop.
     ///         SYNTHETIC DEMO ONLY. There is no real-world value and no mainnet
     ///         faucet claimable by the public; this exists purely to make the

@@ -26,7 +26,7 @@ function demoSnapshot(): PoolSnapshot {
   };
 }
 
-describe("concentration — HHI", () => {
+describe("concentration: HHI", () => {
   it("computes current HHI for the demo distribution", () => {
     const snap = demoSnapshot();
     const h = hhi(snap.holders, snap.totalSupply);
@@ -63,7 +63,7 @@ describe("concentration — HHI", () => {
   });
 });
 
-describe("concentration — hard block thresholds", () => {
+describe("concentration: hard block thresholds", () => {
   // Build a snapshot where one holder at >=50% triggers the largest-holder hard block.
   it("flags a projected largest holder >= 50% as hard block (concentration)", () => {
     const snap: PoolSnapshot = {

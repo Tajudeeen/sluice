@@ -3,7 +3,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagm
 import { ethers } from "ethers";
 import { ASSET_ABI, GATE_ABI, GATE_ADDRESS, ASSET_ADDRESS } from "../sluice";
 
-// RedemptionForm — request a REDEMPTION through the firewall (spec §22).
+// RedemptionForm: request a REDEMPTION through the firewall (spec §22).
 // Redeems (burns) SLUSD, shrinking pool liquidity; the agent may hard-block
 // if projected post-redemption liquidity falls below the safety floor.
 export default function RedemptionForm({ onSubmitted }: { onSubmitted?: () => void }) {
@@ -24,10 +24,10 @@ export default function RedemptionForm({ onSubmitted }: { onSubmitted?: () => vo
     if (amt <= 0n) { setError("Amount must be > 0."); return; }
     try {
       writeContract({ address: ASSET_ADDRESS as `0x${string}`, abi: ASSET_ABI, functionName: "approve", args: [GATE_ADDRESS as `0x${string}`, amt] });
-      setNotice("1/2 — approving the gate…");
+      setNotice("1/2: approving the gate…");
       setTimeout(() => {
         writeContract({ address: GATE_ADDRESS as `0x${string}`, abi: GATE_ABI, functionName: "requestRedeem", args: [amt] });
-        setNotice("2/2 — request submitted. The attester agent will settle it.");
+        setNotice("2/2: request submitted. The attester agent will settle it.");
         setTimeout(() => { onSubmitted?.(); setNotice(null); }, 2500);
       }, 1800);
     } catch (err: any) {

@@ -1,4 +1,4 @@
-# Sluice — Disclosure
+# Sluice: Disclosure
 
 **Sluice is a hackathon demo, not a production system.** It is an *AI-native
 execution firewall for tokenized assets* built for the BOT Chain Builder
@@ -35,7 +35,7 @@ without reading the source.
   label, never calldata, never instructions, never a transaction.
 - The **deterministic risk engine is authoritative**. A deterministic hard block
   (projected HHI ≥ 0.35, projected largest holder ≥ 50%, post-redemption
-  liquidity < 20%, or anomaly ≥ 85) **always wins** — the LLM cannot flip a
+  liquidity < 20%, or anomaly ≥ 85) **always wins**: the LLM cannot flip a
   hard block to APPROVE, and cannot turn a BLOCK into APPROVE.
 - If `ANTHROPIC_API_KEY` is absent, the system runs a deterministic fallback and
   honestly labels itself `INSUFFICIENT_DATA`. The demo works end-to-end without
@@ -52,7 +52,7 @@ before settlement and prevented by an on-chain execution gate.*
 ## 5. The "concentration attack" simulator is real, bounded, and synthetic
 
 - The simulator originates a **real on-chain** `requestTransfer` from a
-  **predefined synthetic demo wallet** (Hardhat test account #1 — no real funds,
+  **predefined synthetic demo wallet** (Hardhat test account #1: no real funds,
   only synthetic SLUSD) to a **fixed, never-funded target address**.
 - It can **never** target arbitrary addresses or arbitrary amounts (spec §28).
   The resulting request is evaluated by the real agent and **BLOCKED** by the
@@ -76,7 +76,7 @@ before settlement and prevented by an on-chain execution gate.*
 
 ## 7. Known limitations
 
-- Single attester (v1) — see §2.
+- Single attester (v1): see §2.
 - Anomaly detector is a deterministic sliding-window heuristic, not ML.
 - Liquidity model treats the synthetic pool's supply as its liquidity; it is a
   teaching model, not a market-depth measure.

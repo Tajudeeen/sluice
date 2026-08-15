@@ -1,7 +1,7 @@
 // End-to-end demo driver against a LOCAL Hardhat node.
 // Executes the two required flows with REAL on-chain transactions:
-//   1) NORMAL  — deployer sends a small safe transfer -> agent APPROVES -> funds settle.
-//   2) ATTACK  — synthetic demo attacker sends a 400k transfer -> agent BLOCKS (HHI hard block) -> refund.
+//   1) NORMAL : deployer sends a small safe transfer -> agent APPROVES -> funds settle.
+//   2) ATTACK : synthetic demo attacker sends a 400k transfer -> agent BLOCKS (HHI hard block) -> refund.
 // Prints request ids + settlement tx hashes so the result is independently verifiable
 // against the node (and, on mainnet, the explorer).
 

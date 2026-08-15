@@ -1,6 +1,6 @@
 import type { Projection } from "../lib/projection";
 
-// DecisionBreakdown — before/after visualization (spec §24, the most important
+// DecisionBreakdown: before/after visualization (spec §24, the most important
 // frontend component). Contrasts CURRENT vs PROJECTED pool state so the user
 // understands why a transaction was blocked without reading source code.
 export default function DecisionBreakdown({ proj, breach }: { proj: Projection; breach: boolean }) {

@@ -1,7 +1,7 @@
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { ASSET_ABI, ASSET_ADDRESS } from "../sluice";
 
-// FaucetButton — lets a connected browser user claim synthetic SLUSD so they can
+// FaucetButton: lets a connected browser user claim synthetic SLUSD so they can
 // actually drive the real request → settle loop. Demo-only (see SluiceAsset.faucet).
 export default function FaucetButton() {
   const { isConnected } = useAccount();

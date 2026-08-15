@@ -5,7 +5,7 @@ import type { SluiceConfig } from "../config";
 // Simple deterministic sliding-window anomaly detector.
 // Analyzes recent transaction history for: high frequency, large amount,
 // repeated transactions, bursts, and unusual timing. Produces anomalyScore 0..100
-// and human-readable reason codes. This is NOT an ML model — it is transparent
+// and human-readable reason codes. This is NOT an ML model: it is transparent
 // and rule-based so judges can audit every output.
 
 export interface AnomalyInput {

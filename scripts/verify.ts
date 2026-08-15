@@ -84,13 +84,13 @@ async function main() {
     console.log(`\nVerifying ${label} at ${address} ...`);
     try {
       await hre.run("verify:verify", { address, constructorArguments: args });
-      console.log(`  OK — ${label} verified.`);
+      console.log(`  OK: ${label} verified.`);
     } catch (err: any) {
       const msg = String(err?.message || err);
       if (/already verified|already been verified/i.test(msg)) {
-        console.log(`  SKIP — ${label} is already verified.`);
+        console.log(`  SKIP: ${label} is already verified.`);
       } else {
-        console.warn(`  WARN — verification failed for ${label}: ${msg.split("\n")[0]}`);
+        console.warn(`  WARN: verification failed for ${label}: ${msg.split("\n")[0]}`);
         console.warn("        (explorer may not support Etherscan-style verification on this network)");
       }
     }

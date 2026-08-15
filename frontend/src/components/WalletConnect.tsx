@@ -2,7 +2,7 @@ import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { shortAddr } from "../sluice";
 
-// WalletConnect — the spec's required connect/disconnect control.
+// WalletConnect: the spec's required connect/disconnect control.
 // Used in the site nav on every page (see SiteNav).
 export default function WalletConnect() {
   const { address, isConnected } = useAccount();

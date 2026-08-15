@@ -3,7 +3,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagm
 import { ethers } from "ethers";
 import { ASSET_ABI, GATE_ABI, GATE_ADDRESS, ASSET_ADDRESS } from "../sluice";
 
-// TransferForm — request a TRANSFER through the firewall (spec §22).
+// TransferForm: request a TRANSFER through the firewall (spec §22).
 // Funds are locked first (approve + requestTransfer); the agent settles after.
 export default function TransferForm({ onSubmitted }: { onSubmitted?: () => void }) {
   const { address, isConnected } = useAccount();
@@ -26,10 +26,10 @@ export default function TransferForm({ onSubmitted }: { onSubmitted?: () => void
     if (recipient.toLowerCase() === address.toLowerCase()) { setError("Cannot transfer to yourself."); return; }
     try {
       writeContract({ address: ASSET_ADDRESS as `0x${string}`, abi: ASSET_ABI, functionName: "approve", args: [GATE_ADDRESS as `0x${string}`, amt] });
-      setNotice("1/2 — approving the gate…");
+      setNotice("1/2: approving the gate…");
       setTimeout(() => {
         writeContract({ address: GATE_ADDRESS as `0x${string}`, abi: GATE_ABI, functionName: "requestTransfer", args: [recipient as `0x${string}`, amt] });
-        setNotice("2/2 — request submitted. The attester agent will settle it.");
+        setNotice("2/2: request submitted. The attester agent will settle it.");
         setTimeout(() => { onSubmitted?.(); setNotice(null); }, 2500);
       }, 1800);
     } catch (err: any) {

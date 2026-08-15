@@ -10,7 +10,7 @@ export default function How() {
         <h1>How Sluice works</h1>
         <p>
           {SLUICE_META.assetSymbol} is a <b>synthetic, gated asset</b>. Its contract rejects every
-          direct transfer — only the <b>SluiceGate</b> firewall may move it. That single rule makes
+          direct transfer: only the <b>SluiceGate</b> firewall may move it. That single rule makes
           the gate the mandatory checkpoint for all value movement, and lets an off-chain risk engine
           sit in the path before any funds leave escrow.
         </p>
@@ -40,8 +40,8 @@ export default function How() {
             </tbody>
           </table>
           <div className="bands">
-            <div className="band-row"><span className="badge s1">0–39</span> APPROVE — no AI needed</div>
-            <div className="band-row"><span className="badge s0">40–69</span> REVIEW — AI may flag, never flip a hard block</div>
+            <div className="band-row"><span className="badge s1">0–39</span> APPROVE: no AI needed</div>
+            <div className="band-row"><span className="badge s0">40–69</span> REVIEW: AI may flag, never flip a hard block</div>
             <div className="band-row"><span className="badge s2">70–100</span> BLOCK</div>
           </div>
           <p className="muted small">
@@ -67,7 +67,7 @@ export default function How() {
       </main>
 
       <footer className="foot">
-        <span>Sluice — synthetic demo. The blockchain is the final enforcement point.</span>
+        <span>Sluice: synthetic demo. The blockchain is the final enforcement point.</span>
       </footer>
     </div>
   );

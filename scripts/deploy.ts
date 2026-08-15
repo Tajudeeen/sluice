@@ -18,7 +18,7 @@ import * as path from "path";
 
 const ASSET_NAME = "Sluice Liquidity Unit";
 const ASSET_SYMBOL = "SLUSD";
-// 1,000,000 SLUSD (18 decimals) — the synthetic demo pool.
+// 1,000,000 SLUSD (18 decimals): the synthetic demo pool.
 const TOTAL_SUPPLY = ethers.parseUnits("1000000", 18);
 const TIMEOUT = process.env.SLUICE_TIMEOUT ? Number(process.env.SLUICE_TIMEOUT) : 3600; // seconds
 
@@ -38,7 +38,7 @@ function distribution(): { addr: string; amount: bigint }[] {
 }
 
 // Predefined SYNTHETIC demo-attacker wallet for the "concentration attack"
-// simulator. This is Hardhat's well-known test account #1 — it controls NO real
+// simulator. This is Hardhat's well-known test account #1: it controls NO real
 // funds and ONLY ever holds synthetic SLUSD. The frontend simulator uses this
 // key to originate a REAL on-chain attack request (so the resulting BLOCK is
 // verifiable on-chain), exactly as the spec requires (§25). It is never the
@@ -47,7 +47,7 @@ export const DEMO_ATTACKER_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c
 export const DEMO_ATTACKER_ADDRESS = new ethers.Wallet(DEMO_ATTACKER_KEY).address;
 // The attack CONSOLIDATES the attacker's stake into the largest holder (holder A
 // = Hardhat signer #3), pushing that holder past the 50% largest-holder hard
-// block. This is a fixed, predefined target (never arbitrary addresses — §28).
+// block. This is a fixed, predefined target (never arbitrary addresses: §28).
 // Resolved to the actual deployed holder A address at deploy time.
 export let DEMO_ATTACK_TARGET = "0x00000000000000000000000000000000deadbeef";
 // The attack transfers this much synthetic SLUSD, calibrated so that after
@@ -67,7 +67,7 @@ async function main() {
   const minGas = ethers.parseEther("0.01");
   if (bal < minGas) {
     throw new Error(
-      `Deployer ${deployer.address} has ${ethers.formatEther(bal)} BOT — insufficient for gas on '${networkName}'. ` +
+      `Deployer ${deployer.address} has ${ethers.formatEther(bal)} BOT: insufficient for gas on '${networkName}'. ` +
         `Fund it and retry. (Aborting rather than hanging on an unmineable tx.)`
     );
   }
@@ -125,12 +125,12 @@ async function main() {
     const signers = await hre.ethers.getSigners();
     // signers[3..8] -> alice, bob, carol, dave, eve, stranger (mirrors the tests).
     // Holder A (signers[3]) is the largest at 35% and is the attack's consolidation
-    // target (a fixed, predefined address — never arbitrary, see §28).
+    // target (a fixed, predefined address: never arbitrary, see §28).
     targets = signers.slice(3, 3 + dist.length).map((s: any) => s.address);
     holderA = signers[3].address;
   } else {
     console.warn(
-      "No DEMO_HOLDERS set and not on a local network — minting the entire supply to the deployer. " +
+      "No DEMO_HOLDERS set and not on a local network: minting the entire supply to the deployer. " +
         "Set DEMO_HOLDERS=a,b,c,d,e,f to seed demo wallets for the risk engine."
     );
     targets = [deployer.address];
@@ -155,7 +155,7 @@ async function main() {
 
   // Seed the SYNTHETIC demo-attacker wallet (Hardhat test account #1) so the
   // concentration-attack simulator can originate a REAL on-chain request that
-  // breaches the HHI hard-block. Synthetic SLUSD only — no real value.
+  // breaches the HHI hard-block. Synthetic SLUSD only: no real value.
   // 500k of the 1.5M pool; the attack sends 450k into holder A, pushing A past 50%.
   const attackSeed = ethers.parseUnits("500000", 18);
   {

@@ -1,4 +1,4 @@
-// Sluice Agent — the off-chain execution arbiter.
+// Sluice Agent: the off-chain execution arbiter.
 //
 // Loads .env so `npm run agent` picks up SLUICE_* / ATTESTER_* secrets without a
 // separate dotenv step. (Running under `node dist/listener.js` has no bundler.)
@@ -48,7 +48,7 @@ export interface ListenerConfig {
   rpcUrl: string;
   gateAddress: string;
   assetAddress: string;
-  // The SINGLE authorized attester private key (v1). Server-side secret — never
+  // The SINGLE authorized attester private key (v1). Server-side secret: never
   // exposed to any frontend.
   attesterPrivateKey: string;
   config?: SluiceConfig;
@@ -136,7 +136,7 @@ export class SluiceAgent {
   // escrow for any pending request; that supply still economically belongs to the
   // requester. We attribute the gate's escrow back to `escrowOwner` (the requester
   // of the request being evaluated) so concentration math reflects who really owns
-  // the supply — otherwise a transfer would be double-counted (credited to the
+  // the supply: otherwise a transfer would be double-counted (credited to the
   // recipient while also vanishing from the gate), masking concentration breaches.
   private async buildSnapshot(escrowOwner?: string): Promise<PoolSnapshot> {
     const [totalSupply, holderAddrs, gateAddr] = await Promise.all([
