@@ -103,6 +103,15 @@ contract SluiceGate is ReentrancyGuard, EIP712 {
         "Attestation(uint256 requestId,uint8 decision,uint8 reasonCode,uint8 aiClassification,uint32 riskScore,uint32 deterministicScore,uint32 aiConfidence,uint32 timestamp,uint32 expiry)"
     );
 
+    // Max allowed skew (seconds) between an attestation's signed timestamp and
+    // the validating block time. Bounds the "future timestamp" check so a
+    // VALIDLY signed, in-flight attestation is not rejected merely because the
+    // latest block timestamp lags the wall clock (common after snapshot reverts
+    // or slow block production). The independent `expiry` check still enforces
+    // the real freshness/liveness window, so this tolerance does not weaken
+    // replay or liveness guarantees.
+    uint256 private constant MAX_TIMESTAMP_SKEW = 60;
+
     constructor(address asset_, address registry_, uint256 timeout_) EIP712("SluiceGate", "1") {
         if (asset_ == address(0) || registry_ == address(0)) revert ZeroAddress();
         asset = IERC20(asset_);
@@ -219,7 +228,7 @@ contract SluiceGate is ReentrancyGuard, EIP712 {
         if (req.status != RequestStatus.PENDING) revert NotPending();
         if (att.requestId != requestId) revert WrongRequestId();
         if (att.decision != want) revert WrongDecision();
-        if (att.timestamp > block.timestamp) revert FutureTimestamp();
+        if (att.timestamp > block.timestamp + MAX_TIMESTAMP_SKEW) revert FutureTimestamp();
         if (att.expiry < block.timestamp) revert Expired();
 
         bytes32 structHash = keccak256(

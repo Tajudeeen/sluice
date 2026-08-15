@@ -1,6 +1,16 @@
 const { ethers } = require("ethers");
+const fs = require("fs");
+const path = require("path");
+
+function loadGate() {
+  for (const name of ["deployment.localhost.json", "deployment.hardhat.json"]) {
+    const p = path.join(__dirname, "..", "artifacts", name);
+    if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, "utf8")).gate;
+  }
+  return "0x4C4a2f8c81640e47606d3fd77B353E87Ba015584";
+}
 const RPC = "http://127.0.0.1:8545";
-const GATE = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
+const GATE = loadGate();
 const GATE_ABI = [
   "function getRequest(uint256 id) view returns (tuple(uint256 id, address requester, address recipient, uint256 amount, uint8 requestType, uint256 createdAt, uint8 status))",
   "function requestCounter() view returns (uint256)",

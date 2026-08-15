@@ -1,0 +1,12 @@
+import { ethers } from "ethers";
+const RPC = "http://127.0.0.1:8545";
+const provider = new ethers.JsonRpcProvider(RPC);
+const rich = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
+const attester = process.argv[2];
+const amt = ethers.parseEther("5");
+const bal = await provider.getBalance(rich.address);
+console.log(`rich ${rich.address} bal ${ethers.formatEther(bal)}`);
+const tx = await rich.sendTransaction({ to: attester, value: amt });
+await tx.wait();
+const nb = await provider.getBalance(attester);
+console.log(`funded attester ${attester} -> ${ethers.formatEther(nb)} BOT (tx ${tx.hash})`);

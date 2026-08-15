@@ -6,10 +6,30 @@
 // against the node (and, on mainnet, the explorer).
 
 const { ethers } = require("ethers");
+const fs = require("fs");
+const path = require("path");
+
+// Resolve deployed addresses from the deployment artifact written by
+// `npm run deploy:local` (scripts/deploy.ts -> artifacts/deployment.localhost.json).
+// Falls back to the well-known Hardhat anvil addresses for convenience.
+function loadDeployment() {
+  for (const name of ["deployment.localhost.json", "deployment.hardhat.json"]) {
+    const p = path.join(__dirname, "..", "artifacts", name);
+    if (fs.existsSync(p)) {
+      const j = JSON.parse(fs.readFileSync(p, "utf8"));
+      return { gate: j.gate, asset: j.asset };
+    }
+  }
+  return {
+    gate: "0x4C4a2f8c81640e47606d3fd77B353E87Ba015584",
+    asset: "0x04C89607413713Ec9775E14b954286519d836FEf",
+  };
+}
+const DEP = loadDeployment();
 
 const RPC = "http://127.0.0.1:8545";
-const GATE = "0x4C4a2f8c81640e47606d3fd77B353E87Ba015584";
-const ASSET = "0x04C89607413713Ec9775E14b954286519d836FEf";
+const GATE = DEP.gate;
+const ASSET = DEP.asset;
 const DEPLOYER_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 const ATTACKER_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
 const ATTACK_TARGET = process.env.SLUICE_DEMO_ATTACK_TARGET || "0x00000000000000000000000000000000deadbeef";
