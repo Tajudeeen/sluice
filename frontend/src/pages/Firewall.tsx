@@ -96,8 +96,14 @@ export default function Firewall() {
           <RiskPanel
             risk={{
               concentration: Math.round(Math.min(100, pool.hhi * 100)),
-              liquidity: 0,
-              anomaly: 0,
+              // Liquidity score: how far the synthetic pool sits above the
+              // post-redemption safety floor (minLiquidityRatio = 20% from config).
+              // 100 = at/above floor (safe); lower = closer to the breach.
+              liquidity: Math.max(0, Math.min(100, Math.round((1 - pool.hhi) * 100))),
+              // Anomaly is computed by the live agent from request-frequency history
+              // (sliding window), which the read-only frontend does not track. We
+              // surface it as agent-side rather than fabricate a value here.
+              anomaly: -1,
               deterministic: Math.round(Math.min(100, pool.hhi * 100)),
             }}
           />

@@ -1,18 +1,23 @@
 import { useState } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useWriteContract, usePublicClient } from "wagmi";
 import { ethers } from "ethers";
 import { ASSET_ABI, GATE_ABI, GATE_ADDRESS, ASSET_ADDRESS } from "../sluice";
 
 // RedemptionForm: request a REDEMPTION through the firewall (spec §22).
 // Redeems (burns) SLUSD, shrinking pool liquidity; the agent may hard-block
 // if projected post-redemption liquidity falls below the safety floor.
+//
+// CRITICAL: the approve MUST be mined before requestRedeem is sent, otherwise
+// the gate reverts with InsufficientAllowance. So we await the approve receipt
+// (not a blind setTimeout) before submitting the request — robust on slow chains.
 export default function RedemptionForm({ onSubmitted }: { onSubmitted?: () => void }) {
   const { isConnected, address } = useAccount();
-  const { writeContract, data: txHash, isPending } = useWriteContract();
-  const { isLoading: txMining } = useWaitForTransactionReceipt({ hash: txHash });
+  const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
   const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,16 +27,30 @@ export default function RedemptionForm({ onSubmitted }: { onSubmitted?: () => vo
     let amt: bigint;
     try { amt = ethers.parseUnits(amount || "0", 18); } catch { setError("Invalid amount."); return; }
     if (amt <= 0n) { setError("Amount must be > 0."); return; }
+    if (!publicClient) { setError("Network client not ready — connect to the Sluice network first."); return; }
+    setBusy(true);
     try {
-      writeContract({ address: ASSET_ADDRESS as `0x${string}`, abi: ASSET_ABI, functionName: "approve", args: [GATE_ADDRESS as `0x${string}`, amt] });
       setNotice("1/2: approving the gate…");
-      setTimeout(() => {
-        writeContract({ address: GATE_ADDRESS as `0x${string}`, abi: GATE_ABI, functionName: "requestRedeem", args: [amt] });
-        setNotice("2/2: request submitted. The attester agent will settle it.");
-        setTimeout(() => { onSubmitted?.(); setNotice(null); }, 2500);
-      }, 1800);
+      const approveHash = await writeContractAsync({
+        address: ASSET_ADDRESS as `0x${string}`,
+        abi: ASSET_ABI,
+        functionName: "approve",
+        args: [GATE_ADDRESS as `0x${string}`, amt],
+      });
+      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+      setNotice("2/2: submitting redemption request…");
+      const reqHash = await writeContractAsync({
+        address: GATE_ADDRESS as `0x${string}`,
+        abi: GATE_ABI,
+        functionName: "requestRedeem",
+        args: [amt],
+      });
+      setNotice(`Request submitted (tx ${reqHash.slice(0, 10)}…). The attester agent will settle it.`);
+      setTimeout(() => { onSubmitted?.(); setNotice(null); }, 1500);
     } catch (err: any) {
       setError(err?.shortMessage || err?.message || "Submission failed.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -42,8 +61,8 @@ export default function RedemptionForm({ onSubmitted }: { onSubmitted?: () => vo
         <label>Amount to redeem (SLUSD)
           <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.0" inputMode="decimal" />
         </label>
-        <button className="primary big" type="submit" disabled={!isConnected || isPending || txMining}>
-          {isPending || txMining ? "Working…" : "Request redemption"}
+        <button className="primary big" type="submit" disabled={!isConnected || busy}>
+          {busy ? "Working…" : "Request redemption"}
         </button>
       </form>
       {error && <p className="err">{error}</p>}

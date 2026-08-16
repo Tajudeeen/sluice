@@ -9,9 +9,12 @@ without reading the source.
 
 - `SLUSD` (Sluice Liquidity Unit) is a **synthetic** ERC-20 minted only for this
   demo. It represents **no real-world asset, no custody, no claim on anything**.
-- There is a `faucet()` on the asset that mints synthetic SLUSD to any caller so
-  a browser user can drive the real request → settle loop. It is owner-gated in
-  spirit (capped per call) and exists purely to make the demo reachable.
+- There is an open `faucet()` on the asset (a public `external` function, NOT
+  owner-gated) that mints 50,000 synthetic SLUSD per call to any caller, so a
+  browser user can drive the real request → settle loop themselves. It is
+  intentionally open (capped per call) so judges/visitors can try the demo
+  without pre-seeded funds, and exists purely to make the flow reachable. It
+  only ever mints synthetic SLUSD — no real value.
 - Nothing in Sluice touches real money. Deployments to BOT Chain Mainnet use
   real gas, but the contracts only ever move synthetic SLUSD.
 

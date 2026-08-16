@@ -194,6 +194,9 @@ table.model { margin-top: 12px; }
 .fill.good { background: var(--good); }
 .fill.warn { background: var(--warn); }
 .fill.bad { background: var(--bad); }
+/* Agent-side metric (no request-frequency history in the read-only UI): a
+   neutral, non-graded bar so it reads as "computed elsewhere", not a score. */
+.fill.muted-fill { background: repeating-linear-gradient(90deg, var(--line) 0 6px, transparent 6px 12px); opacity: .7; }
 
 /* ---- scenario simulator + before/after ---- */
 .simulator { grid-column: 1 / -1; border-color: rgba(255,93,108,.35); background: linear-gradient(135deg, rgba(255,93,108,.06), rgba(124,58,237,.05)); }
