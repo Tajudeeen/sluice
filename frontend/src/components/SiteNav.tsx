@@ -8,7 +8,7 @@ export default function SiteNav() {
     <header className="hero">
       <Link to="/" className="brand">
         <span className="logo">▱ SLUICE</span>
-        <span className="net">BOT Chain · {CHAIN_ID}</span>
+        <span className="net"><span className="dot" />BOT Chain<span className="net-id">{CHAIN_ID}</span></span>
       </Link>
       <nav className="nav">
         <NavLink to="/" end className={({ isActive }) => (isActive ? "navlink on" : "navlink")}>
