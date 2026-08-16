@@ -15,6 +15,7 @@ export default function DecisionFeed({ requests }: { requests: RequestView[] }) 
   return (
     <section className="card requests">
       <h2>Live decision feed</h2>
+      <div className="table-scroll">
       <table>
         <thead><tr><th>#</th><th>Type</th><th>Amount</th><th>Status</th><th></th></tr></thead>
         <tbody>
@@ -29,6 +30,7 @@ export default function DecisionFeed({ requests }: { requests: RequestView[] }) 
           ))}
         </tbody>
       </table>
+      </div>
     </section>
   );
 }

@@ -44,7 +44,7 @@ header.hero {
 .net .net-id { color: var(--txt); font-family: ui-monospace, monospace; margin-left: 5px; }
 @keyframes dotpulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
 .wallet { display: flex; align-items: center; gap: 12px; }
-.addr { font-family: ui-monospace, monospace; font-size: 13px; color: var(--accent2); }
+.addr { font-family: ui-monospace, monospace; font-size: 13px; color: var(--accent2); max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 button { cursor: pointer; border: none; border-radius: 10px; font-weight: 600; font-size: 14px; transition: transform .08s ease, box-shadow .15s ease, background .15s ease; }
 button:active { transform: translateY(1px); }
@@ -108,11 +108,56 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: upp
 
 .foot { max-width: 1080px; margin: 0 auto 30px; padding: 0 28px; color: #5f6f8c; font-size: 12px; }
 
+/* ---- responsive: tablet + phone ---- */
+/* Header: allow wrapping so the brand pill + nav + wallet never overflow on
+   narrow screens. Ensure a VISIBLE nav at every width (no hidden navigation). */
+header.hero { flex-wrap: wrap; gap: 10px 14px; padding: 14px 18px; }
+.net { display: none; } /* hide the verbose network pill on phones; restored at >=600px */
+.nav { flex-wrap: wrap; }
+.navlink { padding: 7px 10px; font-size: 13px; }
+
+.cta-row { flex-direction: column; align-items: stretch; }
+.cta-row .primary.big, .cta-row .ghost.big { width: 100%; }
+
+/* Tables scroll horizontally instead of breaking the layout on small screens. */
+.table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll table { min-width: 480px; }
+
+/* Long monospace strings (addresses/hashes) never overflow their card. */
+.haddr, .ba-row b, code { overflow-wrap: anywhere; word-break: break-word; }
+
 @media (max-width: 880px) {
-  main.grid { grid-template-columns: 1fr; }
+  main.grid { grid-template-columns: 1fr; padding: 0 16px; }
   .pipeline { grid-template-columns: 1fr 1fr; }
   .stats { grid-template-columns: 1fr 1fr; }
-  .site-nav .nav { display: none; }
+  .pillars { grid-template-columns: 1fr; }
+  .how-grid { grid-template-columns: 1fr; }
+  .invariants { grid-template-columns: 1fr; }
+  .req-forms { grid-template-columns: 1fr; }
+  .sim-grid { grid-template-columns: 1fr; }
+  .beforeafter { grid-template-columns: 1fr; }
+  .ba-arrow { transform: rotate(90deg); text-align: center; }
+}
+
+@media (min-width: 600px) {
+  .net { display: inline-flex; } /* show network pill again on larger screens */
+}
+
+@media (max-width: 560px) {
+  .pitch { padding: 0 16px; margin-top: 20px; }
+  .pitch h1 { font-size: 24px; }
+  .lede { font-size: 15px; }
+  main.grid { gap: 14px; }
+  .card { padding: 16px; }
+  .pillars { padding: 0 16px; margin-top: 36px; }
+  .band { padding: 22px 18px; margin: 32px 16px 50px; }
+  .pillar { padding: 16px; }
+  /* On the smallest screens, put nav on its own full-width row for fat tap targets. */
+  header.hero { padding: 12px 14px; }
+  .brand { width: 100%; justify-content: space-between; }
+  .nav { width: 100%; justify-content: space-around; gap: 4px; }
+  .navlink { flex: 1; text-align: center; }
+  .wallet { width: 100%; justify-content: flex-end; }
 }
 
 /* ---- persistent nav ---- */
@@ -171,12 +216,6 @@ table.model { margin-top: 12px; }
 .inv { background: var(--card2); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
 .inv-t { font-weight: 800; font-size: 14px; margin-bottom: 6px; color: var(--good); }
 .inv-d { color: var(--muted); font-size: 13px; line-height: 1.5; }
-
-@media (max-width: 880px) {
-  .pillars { grid-template-columns: 1fr; }
-  .how-grid { grid-template-columns: 1fr; }
-  .invariants { grid-template-columns: 1fr; }
-}
 
 /* ---- request forms (transfer / redemption) ---- */
 .faucet { margin-bottom: 14px; }

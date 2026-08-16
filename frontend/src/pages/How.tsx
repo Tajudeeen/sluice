@@ -31,6 +31,7 @@ export default function How() {
         <section className="card">
           <h2>2 · The risk model</h2>
           <p className="muted">Three weighted, BigInt-safe component scores feed one policy. All thresholds live in one config file.</p>
+          <div className="table-scroll">
           <table className="model">
             <thead><tr><th>Component</th><th>Weight</th><th>Measures</th></tr></thead>
             <tbody>
@@ -39,6 +40,7 @@ export default function How() {
               <tr><td>Anomaly</td><td>25</td><td>sliding window: large amount, burst, repeated requester</td></tr>
             </tbody>
           </table>
+          </div>
           <div className="bands">
             <div className="band-row"><span className="badge s1">0–39</span> APPROVE: no AI needed</div>
             <div className="band-row"><span className="badge s0">40–69</span> REVIEW: AI may flag, never flip a hard block</div>
