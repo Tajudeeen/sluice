@@ -141,7 +141,39 @@ npm run deploy:bot
 npm run verify:bot
 ```
 
-## Security invariants
+## Live demo mirror (no mainnet gas needed)
+
+The build link you hand reviewers should show a **working firewall**, not an empty
+shell. Before the BOT mainnet token arrives, deploy the exact same contracts to
+**Sepolia** (free test ETH) and bake those addresses into the frontend build:
+
+```bash
+# 1) fund a deployer wallet with Sepolia ETH (faucet: sepoliafaucet.com), then:
+export DEPLOYER_PRIVATE_KEY=0x... ATTESTER_PRIVATE_KEY=0x...
+npm run deploy:sepolia                 # writes artifacts/deployment.sepolia.json + artifacts/deployment.frontend.env
+
+# 2) build the hosted frontend from that deploy:
+cp artifacts/deployment.frontend.env frontend/.env
+npm run frontend:build -- --base=/sluice/
+
+# 3) publish to GitHub Pages (see scripts/publish-pages.sh)
+bash scripts/publish-pages.sh
+```
+
+The hosted build now shows the live gate + asset, the attester agent settles
+requests in real time, and the concentration-attack simulator runs on-chain.
+When the BOT token arrives, repeat with `npm run deploy:bot` and rebuild — the
+only difference is the network.
+
+## Hosted build
+
+The frontend is a static SPA. It reads `VITE_*` addresses at build time, so a
+build without `VITE_GATE_ADDRESS`/`VITE_ASSET_ADDRESS` shows an intentional
+**Demo mode** banner (the firewall is proven locally; deployment is gated on the
+mainnet-gas token) instead of a broken state. Publish with `scripts/publish-pages.sh`
+to a `gh-pages` branch and enable GitHub Pages (root) in repo Settings.
+
+Security invariants
 
 - Off-chain agent is advisory enforcement, never custody. The gate re-verifies everything.
 - `timeoutRelease` guarantees users are refunded if the agent is offline.

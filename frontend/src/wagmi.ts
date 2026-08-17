@@ -1,12 +1,12 @@
 import { http, createConfig } from "wagmi";
-import { CHAIN_ID, RPC_URL, EXPLORER_URL } from "./sluice";
+import { CHAIN_ID, RPC_URL, EXPLORER_URL, CHAIN_NAME } from "./sluice";
 
-// BOT Chain (chainId 677). The frontend only ever READS on-chain state and
-// submits requests; the attester agent performs settlement. No funds are moved
-// by the frontend directly.
+// Configurable chain (defaults to BOT Chain mainnet, chainId 677). The frontend
+// only ever READS on-chain state and submits requests; the attester agent
+// performs settlement. No funds are moved by the frontend directly.
 export const botChain = {
   id: CHAIN_ID,
-  name: "BOT Chain",
+  name: CHAIN_NAME,
   nativeCurrency: { name: "BOT", symbol: "BOT", decimals: 18 },
   rpcUrls: { default: { http: [RPC_URL] } },
   blockExplorers: { default: { name: "BOTScan", url: EXPLORER_URL.replace(/\/$/, "") } },

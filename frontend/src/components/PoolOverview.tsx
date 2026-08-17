@@ -7,7 +7,8 @@ export default function PoolOverview({ pool, risk }: { pool: PoolView; risk: "OK
   const riskCls = risk === "CRITICAL" ? "bad" : risk === "WATCH" ? "warn" : "good";
   return (
     <section className="card pool">
-      <h2>Pool: Sluice Liquidity Unit (SLUSD)</h2>
+      <div className="card-label">POOL STATE</div>
+      <h2>Sluice Liquidity Unit / SLUSD</h2>
       <div className="stats">
         <div className="stat"><div className="stat-v">{fmt(pool.totalSupply)}</div><div className="stat-l">Total supply</div></div>
         <div className="stat"><div className="stat-v">{pool.holderCount}</div><div className="stat-l">Holders</div></div>

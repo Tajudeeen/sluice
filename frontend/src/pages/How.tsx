@@ -5,14 +5,13 @@ import { SLUICE_META } from "../sluice";
 export default function How() {
   return (
     <div className="app how">
-      <div className="bg" aria-hidden="true"><div className="orb o1" /><div className="orb o2" /></div>
+      <div className="bg" aria-hidden="true" />
       <section className="pitch">
-        <h1>How Sluice works</h1>
+        <div className="section-kicker">PROTOCOL / SYSTEM DESIGN</div>
+        <h1>Nothing moves around the gate.</h1>
         <p>
-          {SLUICE_META.assetSymbol} is a <b>synthetic, gated asset</b>. Its contract rejects every
-          direct transfer: only the <b>SluiceGate</b> firewall may move it. That single rule makes
-          the gate the mandatory checkpoint for all value movement, and lets an off-chain risk engine
-          sit in the path before any funds leave escrow.
+          {SLUICE_META.assetSymbol} is a synthetic gated asset. Its contract rejects direct transfers;
+          only SluiceGate can move supply. That makes policy enforcement structural rather than optional.
         </p>
       </section>
 
@@ -42,12 +41,12 @@ export default function How() {
           </table>
           </div>
           <div className="bands">
-            <div className="band-row"><span className="badge s1">0–39</span> APPROVE: no AI needed</div>
-            <div className="band-row"><span className="badge s0">40–69</span> REVIEW: AI may flag, never flip a hard block</div>
+            <div className="band-row"><span className="badge s1">0–39</span> APPROVE: policy passes</div>
+            <div className="band-row"><span className="badge s0">40–69</span> REVIEW: contextual review may flag</div>
             <div className="band-row"><span className="badge s2">70–100</span> BLOCK</div>
           </div>
           <p className="muted small">
-            <b>Hard blocks</b> (deterministic, LLM cannot override): projected HHI ≥ 0.35, projected
+            <b>Hard blocks</b> (deterministic and non-overridable): projected HHI ≥ 0.35, projected
             largest holder ≥ 50%, post-redemption liquidity &lt; 20%, or anomaly ≥ 85.
           </p>
         </section>

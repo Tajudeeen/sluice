@@ -55,11 +55,11 @@ export default function ScenarioSimulator({ pool }: { pool: { holders: { address
 
   return (
     <section className="card simulator">
-      <h2>⚠ Concentration-attack simulator</h2>
+      <div className="card-label">ADVERSARIAL TEST / FIXED TARGET</div>
+      <h2>Concentration breach test</h2>
       <p className="muted">
-        Runs the <b>actual</b> Sluice pipeline: a synthetic demo attacker (predefined wallet, synthetic SLUSD only)
-        sends a large transfer that would push the pool past the concentration hard-block. This is a REAL on-chain
-        request: the resulting BLOCK is verifiable in the explorer, not faked in the UI.
+        Sends a predefined synthetic transfer through the same on-chain route as any other request.
+        The projected holder concentration crosses a hard limit, so the gate should return a verifiable block.
       </p>
       <div className="sim-grid">
         <div className="sim-controls">
@@ -69,9 +69,9 @@ export default function ScenarioSimulator({ pool }: { pool: { holders: { address
             <div><span>To</span><b>{shortAddr(DEMO_ATTACK_TARGET)} (fixed target)</b></div>
           </div>
           <button className="danger big" onClick={run} disabled={busy || !pool.totalSupply}>
-            {busy ? "Executing on-chain…" : "Simulate Concentration Attack"}
+            {busy ? "Executing on-chain…" : "Run breach test"}
           </button>
-          {txHash && <p className="ok"><a href={explorerTx(txHash)} target="_blank" rel="noreferrer">Attack tx ↗: agent will BLOCK it</a></p>}
+          {txHash && <p className="ok"><a href={explorerTx(txHash)} target="_blank" rel="noreferrer">Open transaction ↗</a></p>}
           {error && <p className="err">{error}</p>}
         </div>
         {preview && (

@@ -5,13 +5,20 @@
 export const GATE_ADDRESS = (import.meta.env.VITE_GATE_ADDRESS as string) || "";
 export const ASSET_ADDRESS = (import.meta.env.VITE_ASSET_ADDRESS as string) || "";
 export const CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID || 677);
+// Human-facing chain name + short network tag. Lets one build target BOT mainnet,
+// Sepolia, or a local node and label itself correctly (no hardcoded "BOT Chain").
+export const CHAIN_NAME = (import.meta.env.VITE_CHAIN_NAME as string) || "BOT Chain";
+export const NETWORK_TAG = (import.meta.env.VITE_NETWORK_TAG as string) || "BOT Chain";
 export const RPC_URL = (import.meta.env.VITE_BOT_RPC_URL as string) || "https://rpc.botchain.ai/";
 export const EXPLORER_URL = (import.meta.env.VITE_EXPLORER_URL as string) || "https://scan.botchain.ai/";
 export const ATTESTER_ADDRESS = (import.meta.env.VITE_ATTESTER_ADDRESS as string) || "";
 
+// Whether the build was wired with live contract addresses. Drives demo-mode UI.
+export const CONFIGURED = !!GATE_ADDRESS && !!ASSET_ADDRESS;
+
 export const SLUICE_META = {
   name: "Sluice",
-  tagline: "AI-native execution firewall for tokenized assets",
+  tagline: "Policy-driven execution firewall for tokenized assets",
   assetSymbol: "SLUSD",
   assetName: "Sluice Liquidity Unit",
 };

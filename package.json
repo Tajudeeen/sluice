@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "license": "MIT",
-  "description": "AI-native execution firewall for tokenized assets on BOT Chain",
+  "description": "Policy-driven execution firewall for tokenized assets on BOT Chain",
   "scripts": {
     "build": "npm run build:contracts && npm run build:agent",
     "build:contracts": "hardhat compile",
@@ -13,6 +13,7 @@
     "node": "hardhat node",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
     "deploy:bot": "hardhat run scripts/deploy.ts --network bot",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
     "verify:bot": "hardhat run scripts/verify.ts --network bot",
     "agent": "node agent/dist/listener.js",
     "frontend": "vite --config frontend/vite.config.ts",

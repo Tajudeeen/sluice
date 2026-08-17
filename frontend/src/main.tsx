@@ -1,28 +1,25 @@
-import React, { useState } from "react";
+import React from "react";
 import ReactDOM from "react-dom/client";
 import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { wagmiConfig } from "./wagmi";
 import App from "./App";
-import LaunchSplash from "./components/LaunchSplash";
+import { applyTheme, getPreferredTheme } from "./theme";
 import "./styles.css";
 
 const queryClient = new QueryClient();
+applyTheme(getPreferredTheme());
 
 function Root() {
-  const [splashDone, setSplashDone] = useState(false);
   return (
-    <>
-      <WagmiProvider config={wagmiConfig}>
-        <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
-        </QueryClientProvider>
-      </WagmiProvider>
-      {!splashDone && <LaunchSplash onDone={() => setSplashDone(true)} />}
-    </>
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter basename={import.meta.env.BASE_URL}>
+          <App />
+        </BrowserRouter>
+      </QueryClientProvider>
+    </WagmiProvider>
   );
 }
 

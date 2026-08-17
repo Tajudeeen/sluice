@@ -207,6 +207,33 @@ async function main() {
     console.log(`SLUICE_DEMO_ATTACKER_KEY=${DEMO_ATTACKER_KEY}`);
     console.log(`SLUICE_DEMO_ATTACK_TARGET=${DEMO_ATTACK_TARGET}`);
   }
+
+  // Emit a ready-to-use frontend build env (.env.frontend) so the hosted build
+  // can be produced in one step: `cp .env.frontend frontend/.env && npm run frontend:build`.
+  // On testnets/mainnet we also wire the demo-attacker key so the concentration
+  // attack simulator runs live on the hosted link.
+  const chainName = hre.network.name === "bot" ? "BOT Chain" : hre.network.name === "sepolia" ? "Sepolia" : "Local";
+  const networkTag = hre.network.name === "bot" ? "BOT Chain" : hre.network.name === "sepolia" ? "Sepolia" : "Local";
+  const explorer = hre.network.name === "bot" ? "https://scan.botchain.ai/" : hre.network.name === "sepolia" ? "https://sepolia.etherscan.io/" : "";
+  const rpc = hre.network.name === "bot" ? "https://rpc.botchain.ai/" : hre.network.name === "sepolia" ? "https://rpc.sepolia.org" : "http://127.0.0.1:8545";
+  const feLines = [
+    `# Frontend build env for Sluice (network: ${hre.network.name})`,
+    `# Copy to frontend/.env then: npm run frontend:build -- --base=/sluice/`,
+    `VITE_BOT_RPC_URL=${rpc}`,
+    `VITE_CHAIN_ID=${hre.network.config.chainId}`,
+    `VITE_CHAIN_NAME=${chainName}`,
+    `VITE_NETWORK_TAG=${networkTag}`,
+    `VITE_EXPLORER_URL=${explorer}`,
+    `VITE_ASSET_ADDRESS=${await asset.getAddress()}`,
+    `VITE_GATE_ADDRESS=${await gate.getAddress()}`,
+    `VITE_ATTESTER_ADDRESS=${attesterAddr}`,
+  ];
+  if (hre.network.name !== "hardhat" && hre.network.name !== "localhost") {
+    feLines.push(`VITE_DEMO_ATTACKER_KEY=${DEMO_ATTACKER_KEY}`);
+    feLines.push(`VITE_DEMO_ATTACK_TARGET=${DEMO_ATTACK_TARGET}`);
+  }
+  fs.writeFileSync(path.join("artifacts", "deployment.frontend.env"), feLines.join("\n") + "\n");
+  console.log(`\nWrote frontend build env to artifacts/deployment.frontend.env`);
 }
 
 main()

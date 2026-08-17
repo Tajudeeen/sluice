@@ -38,6 +38,15 @@ module.exports = {
       gasPrice: 60_000_000_000,
       timeout: 120_000,
     },
+    // Public testnet for a LIVE demo mirror (no mainnet gas needed). Free Sepolia
+    // ETH from a faucet funds the deployer. Use this to host a working firewall
+    // behind the build link while waiting on the BOT mainnet token.
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL || "https://rpc.sepolia.org",
+      chainId: 11155111,
+      accounts: [deployerKey, attesterKey],
+      timeout: 120_000,
+    },
   },
   etherscan: {
     apiType: "etherscan",

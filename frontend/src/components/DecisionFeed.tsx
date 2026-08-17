@@ -7,14 +7,16 @@ export default function DecisionFeed({ requests }: { requests: RequestView[] }) 
   if (requests.length === 0) {
     return (
       <section className="card requests">
-        <h2>Live decision feed</h2>
-        <p className="muted">No requests yet. Submit a transfer, redeem, or run the concentration-attack simulator above.</p>
+        <div className="card-label">SETTLEMENT LOG</div>
+        <h2>Decision ledger</h2>
+        <p className="muted">No requests recorded. Open a transfer, redemption, or test scenario to create the first entry.</p>
       </section>
     );
   }
   return (
     <section className="card requests">
-      <h2>Live decision feed</h2>
+      <div className="card-label">SETTLEMENT LOG</div>
+      <h2>Decision ledger</h2>
       <div className="table-scroll">
       <table>
         <thead><tr><th>#</th><th>Type</th><th>Amount</th><th>Status</th><th></th></tr></thead>

@@ -3,11 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sluice - AI Execution Firewall for Tokenized Assets</title>
+    <title>Sluice - Execution Firewall for Tokenized Assets</title>
     <meta
       name="description"
-      content="Sluice is an AI-native execution firewall for tokenized assets. Funds are locked, an AI+deterministic risk engine evaluates the move, and an authorized attester releases only safe transfers."
+      content="Sluice locks token movements in escrow, checks projected pool state against policy, and settles safe transfers on-chain."
     />
+    <script>
+      try {
+        const savedTheme = localStorage.getItem("sluice-theme");
+        const theme = savedTheme === "light" || savedTheme === "dark"
+          ? savedTheme
+          : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

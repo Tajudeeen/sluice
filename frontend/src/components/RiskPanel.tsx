@@ -18,10 +18,11 @@ export default function RiskPanel({ risk }: { risk: RiskBreakdown }) {
   const scoreCls = (v: number) => (v >= 70 ? "bad" : v >= 40 ? "warn" : "good");
   return (
     <section className="card">
+      <div className="card-label">POLICY INPUTS</div>
       <h2>Risk breakdown</h2>
       {rows.map(([label, v, hint, showBar]) => (
         <div key={label} className="risk-row">
-          <div className="risk-row-top"><span>{label}</span><span className="risk-val">{showBar ? `${v}/100` : "agent-side"}</span></div>
+          <div className="risk-row-top"><span>{label}</span><span className="risk-val">{showBar ? `${v}/100` : "review node"}</span></div>
           {showBar ? (
             <div className="bar"><div className={`fill ${scoreCls(v)}`} style={{ width: `${v}%` }} /></div>
           ) : (

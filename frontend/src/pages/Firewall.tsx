@@ -12,6 +12,7 @@ import TransferForm from "../components/TransferForm";
 import RedemptionForm from "../components/RedemptionForm";
 import DecisionFeed from "../components/DecisionFeed";
 import ScenarioSimulator from "../components/ScenarioSimulator";
+import DeploymentInfo from "../components/DeploymentInfo";
 import type { RequestView } from "../lib/types";
 
 function fmt(b: bigint): string {
@@ -80,15 +81,16 @@ export default function Firewall() {
 
   return (
     <div className="app">
-      <div className="bg" aria-hidden="true"><div className="orb o1" /><div className="orb o2" /></div>
+      <div className="bg" aria-hidden="true" />
 
       <section className="pitch">
-        <h1>{SLUICE_META.tagline}</h1>
+        <div className="section-kicker">CONTROL ROOM / LIVE POLICY</div>
+        <h1>Execution firewall</h1>
         <p>
-          Every transfer or redemption of <b>{SLUICE_META.assetSymbol}</b> is <b>locked first, evaluated second</b>.
-          A deterministic risk engine + an AI contextual layer score the move; an authorized attester releases only
-          what is safe. Direct token transfers are rejected by the asset: there is no bypass around the firewall.
+          Every {SLUICE_META.assetSymbol} movement enters escrow. Sluice projects the resulting pool state,
+          applies hard limits, and settles only after the gate verifies a signed decision.
         </p>
+        <div className="console-status"><span><i /> Gate route mandatory</span><span>Policy v1.0</span><span>EIP-712 settlement</span></div>
       </section>
 
       <main className="grid">
@@ -111,21 +113,24 @@ export default function Firewall() {
 
         {configured && pool ? (
           <PoolOverview pool={pool} risk={risk} />
+        ) : !configured ? (
+          <DeploymentInfo />
         ) : (
           <section className="card pool">
             <h2>Pool: {SLUICE_META.assetName} ({SLUICE_META.assetSymbol})</h2>
-            <p className="warn">No deployed contract addresses in this build. Set VITE_GATE_ADDRESS / VITE_ASSET_ADDRESS (copy from scripts/deploy.ts output) and rebuild.</p>
+            <p className="muted">Reading on-chain pool state… connect a wallet and retry if this persists.</p>
           </section>
         )}
 
         <section className="card action">
-          <h2>Submit a request through the firewall</h2>
+          <div className="card-label">REQUEST DESK</div>
+          <h2>Route a movement</h2>
           <FaucetButton />
           <div className="req-forms">
             <TransferForm onSubmitted={() => setRefresh((r) => r + 1)} />
             <RedemptionForm onSubmitted={() => setRefresh((r) => r + 1)} />
           </div>
-          <p className="muted small">Connect a wallet (use the demo faucet to receive SLUSD), then request a transfer or redemption. The attester agent evaluates and settles it.</p>
+          <p className="muted small">Connect a wallet, claim synthetic SLUSD if needed, then open a transfer or redemption request.</p>
           {myBalance != null && <p className="muted small">Your balance: <b>{fmt(myBalance as bigint)} SLUSD</b></p>}
         </section>
 
@@ -141,8 +146,8 @@ export default function Firewall() {
             <button className="ghost" onClick={() => setRefresh((r) => r + 1)}>↻ Refresh</button>
           </div>
           <p className="muted small">
-            Requests are settled by the off-chain attester agent, which signs an EIP-712 attestation the gate verifies.
-            The gate is the final enforcement point and refunds via <code>timeoutRelease</code> if the agent is unavailable.
+            An off-chain reviewer signs the decision; the gate verifies it. If no decision arrives before the deadline,
+            <code>timeoutRelease</code> returns the escrowed funds.
           </p>
         </section>
       </main>
