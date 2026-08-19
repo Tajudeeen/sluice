@@ -24,29 +24,32 @@ export const SLUICE_META = {
 };
 
 // ---- SluiceAsset (minimal) ----
+// Use JSON ABI fragments here because wagmi v2 delegates contract calls to
+// viem, which does not accept ethers' human-readable ABI strings. The same
+// fragments are also accepted by ethers for the read-only and simulator calls.
 export const ASSET_ABI = [
-  "function name() view returns (string)",
-  "function symbol() view returns (string)",
-  "function totalSupply() view returns (uint256)",
-  "function balanceOf(address) view returns (uint256)",
-  "function holders() view returns (address[])",
-  "function decimals() view returns (uint8)",
-  "function approve(address spender, uint256 amount) returns (bool)",
-  "function allowance(address owner, address spender) view returns (uint256)",
-  "function faucet()",
+  { type: "function", name: "name", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
+  { type: "function", name: "symbol", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
+  { type: "function", name: "totalSupply", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "holders", stateMutability: "view", inputs: [], outputs: [{ type: "address[]" }] },
+  { type: "function", name: "decimals", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
+  { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }] },
+  { type: "function", name: "allowance", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "faucet", stateMutability: "nonpayable", inputs: [], outputs: [] },
 ] as const;
 
 // ---- SluiceGate (minimal) ----
 export const GATE_ABI = [
-  "event RequestCreated(uint256 indexed id, address indexed requester, address indexed recipient, uint256 amount, uint8 requestType)",
-  "event RequestApproved(uint256 indexed id, address indexed recipient, uint256 amount)",
-  "event RequestBlocked(uint256 indexed id, address indexed requester, uint256 amount)",
-  "event RequestTimedOut(uint256 indexed id, address indexed requester, uint256 amount)",
-  "function requestTransfer(address to, uint256 amount) returns (uint256 id)",
-  "function requestRedeem(uint256 amount) returns (uint256 id)",
-  "function getRequest(uint256 id) view returns (tuple(uint256 id, address requester, address recipient, uint256 amount, uint8 requestType, uint256 createdAt, uint8 status))",
-  "function requestCounter() view returns (uint256)",
-  "function timeout() view returns (uint256)",
+  { type: "event", name: "RequestCreated", anonymous: false, inputs: [{ name: "id", type: "uint256", indexed: true }, { name: "requester", type: "address", indexed: true }, { name: "recipient", type: "address", indexed: true }, { name: "amount", type: "uint256", indexed: false }, { name: "requestType", type: "uint8", indexed: false }] },
+  { type: "event", name: "RequestApproved", anonymous: false, inputs: [{ name: "id", type: "uint256", indexed: true }, { name: "recipient", type: "address", indexed: true }, { name: "amount", type: "uint256", indexed: false }] },
+  { type: "event", name: "RequestBlocked", anonymous: false, inputs: [{ name: "id", type: "uint256", indexed: true }, { name: "requester", type: "address", indexed: true }, { name: "amount", type: "uint256", indexed: false }] },
+  { type: "event", name: "RequestTimedOut", anonymous: false, inputs: [{ name: "id", type: "uint256", indexed: true }, { name: "requester", type: "address", indexed: true }, { name: "amount", type: "uint256", indexed: false }] },
+  { type: "function", name: "requestTransfer", stateMutability: "nonpayable", inputs: [{ name: "to", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ name: "id", type: "uint256" }] },
+  { type: "function", name: "requestRedeem", stateMutability: "nonpayable", inputs: [{ name: "amount", type: "uint256" }], outputs: [{ name: "id", type: "uint256" }] },
+  { type: "function", name: "getRequest", stateMutability: "view", inputs: [{ name: "id", type: "uint256" }], outputs: [{ name: "request", type: "tuple", components: [{ name: "id", type: "uint256" }, { name: "requester", type: "address" }, { name: "recipient", type: "address" }, { name: "amount", type: "uint256" }, { name: "requestType", type: "uint8" }, { name: "createdAt", type: "uint256" }, { name: "status", type: "uint8" }] }] },
+  { type: "function", name: "requestCounter", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "timeout", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
 ] as const;
 
 export const REQUEST_TYPE = { TRANSFER: 0, REDEMPTION: 1 } as const;
