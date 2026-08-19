@@ -462,7 +462,7 @@ button.danger:hover { background: var(--ink); box-shadow: 4px 4px 0 var(--bad); 
 .ba-row { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
 .ba-row b { font-family: var(--mono); }
 .ba-row .delta { color: var(--bad); font-size: 10px; font-style: normal; }
-.ba-arrow { display: grid; width: 44px; place-items: center; border-inline: 1px solid var(--ink); color: var(--signal); font: 700 20px/1 var(--mono); }
+.ba-arrow { display: grid; width: 44px; place-items: center; color: var(--signal); font: 700 20px/1 var(--mono); }
 .ba-flag { margin-top: 20px; padding: 10px; background: var(--bad); color: var(--white); font: 700 10px/1.35 var(--mono); }
 
 /* Protocol page */
