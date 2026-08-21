@@ -135,7 +135,18 @@ export default {
         const provider = new ethers.JsonRpcProvider(env.SLUICE_RPC_URL, undefined, { staticNetwork: true });
         const [network, cachedDecision] = await Promise.all([provider.getNetwork(), workerCache().match(LAST_DECISION_CACHE_KEY)]);
         const decisionEvidence = cachedDecision ? await cachedDecision.json() : lastDecision;
-        return json({ ok: true, chainId: Number(network.chainId), gate: env.SLUICE_GATE_ADDRESS, asset: env.SLUICE_ASSET_ADDRESS, mode: "http+scheduled", aiProvider: configuredAiProvider(), lastDecision: decisionEvidence });
+        return json({
+          ok: true,
+          chainId: Number(network.chainId),
+          gate: env.SLUICE_GATE_ADDRESS,
+          asset: env.SLUICE_ASSET_ADDRESS,
+          mode: "http+scheduled",
+          aiProvider: configuredAiProvider(),
+          groqConfigured: Boolean(env.GROQ_API_KEY),
+          anthropicConfigured: Boolean(env.ANTHROPIC_API_KEY),
+          attesterConfigured: Boolean(env.ATTESTER_PRIVATE_KEY),
+          lastDecision: decisionEvidence,
+        });
       }
       if (request.method === "POST" && url.pathname === "/process/latest") return json({ results: await processPending(env) });
       const match = url.pathname.match(/^\/process\/(\d+)$/);

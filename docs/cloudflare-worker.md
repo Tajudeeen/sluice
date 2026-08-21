@@ -41,8 +41,10 @@ Create an ignored `.dev.vars` file with the same two secret names, then run:
 npx wrangler dev --local --env-file .dev.vars
 ```
 
-Open `http://127.0.0.1:8787/health`. A healthy response contains `chainId: 677` and
-`aiProvider: "groq"`.
+Open `http://127.0.0.1:8787/health`. A healthy response contains `chainId: 677`,
+`attesterConfigured: true`, and either `groqConfigured: true` with
+`aiProvider: "groq"` or an explicit deterministic fallback when no AI key is
+available.
 
 ## Deploy
 

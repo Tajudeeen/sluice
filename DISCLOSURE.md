@@ -44,6 +44,11 @@ without reading the source.
   honestly labels itself `INSUFFICIENT_DATA`. The demo works end-to-end without
   any LLM.
 
+The BOT Chain contracts and hosted attester are deployed, but the public live
+request counter is currently zero. The synthetic attacker holds SLUSD but no
+BOT for gas, so live BOT APPROVE/BLOCK transaction evidence still requires
+funding that wallet and running the two demo flows.
+
 ## 4. No fake claims
 
 Sluice does **not** claim: real RWA custody, regulatory compliance,
