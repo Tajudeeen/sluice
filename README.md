@@ -179,6 +179,7 @@ to a `gh-pages` branch and enable GitHub Pages (root) in repo Settings.
 The current public build is wired to BOT Chain (chain ID 677):
 
 - Frontend: https://tajudeeen.github.io/sluice/
+- Hosted attester Worker: https://sluice-agent.tajudeenowoeteniyan.workers.dev/health
 - Registry: `0x5d3E0B5c981cfC3127d165DB3E28B1F608eBCc3E`
 - SluiceAsset: `0x8CC42b34692B5555865e92ebD9eA3F328868783a`
 - SluiceGate: `0x94037b2D299343b3D4FA02b2432512d263FB537C`

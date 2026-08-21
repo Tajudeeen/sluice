@@ -2,6 +2,7 @@
   "network": "BOT Chain",
   "chainId": 677,
   "frontend": "https://tajudeeen.github.io/sluice/",
+  "worker": "https://sluice-agent.tajudeenowoeteniyan.workers.dev",
   "registry": "0x5d3E0B5c981cfC3127d165DB3E28B1F608eBCc3E",
   "asset": "0x8CC42b34692B5555865e92ebD9eA3F328868783a",
   "gate": "0x94037b2D299343b3D4FA02b2432512d263FB537C",
