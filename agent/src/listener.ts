@@ -23,6 +23,7 @@ import "dotenv/config";
 // to BLOCK; it can NEVER flip a deterministic HARD BLOCK or turn a BLOCK into APPROVE.
 
 import { ethers } from "ethers";
+import { createServer, type Server } from "node:http";
 import { DEFAULT_CONFIG, REASON, AI_CLASS, DECISION, type SluiceConfig } from "./config";
 import { decide, assessRisk } from "./decision/decision";
 import type { PoolSnapshot, ProposedTx, RiskAssessment } from "./types";
@@ -72,6 +73,10 @@ export class SluiceAgent {
   private processed = new Set<number>();
   private history: { amount: bigint; timestamp: number; requester: string }[] = [];
   private running = false;
+  private healthServer?: Server;
+  private startedAt = new Date().toISOString();
+  private lastDecision: Record<string, unknown> | null = null;
+  private chainId: number | null = null;
 
   constructor(input: ListenerConfig) {
     const ttl = input.attestationTtlSec ?? 600;
@@ -95,6 +100,7 @@ export class SluiceAgent {
 
   async start() {
     this.running = true;
+    this.chainId = Number((await this.provider.getNetwork()).chainId);
     // One-pass catch-up of any requests created while we were offline.
     await this.catchUp();
 
@@ -128,6 +134,36 @@ export class SluiceAgent {
   stop() {
     this.running = false;
     this.gate.removeAllListeners?.();
+    this.healthServer?.close();
+  }
+
+  startHealthServer(port = 8787) {
+    if (this.healthServer) return;
+    this.healthServer = createServer((req, res) => {
+      if (req.url !== "/health" && req.url !== "/") {
+        res.writeHead(404, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "not found" }));
+        return;
+      }
+      res.writeHead(200, {
+        "content-type": "application/json",
+        "access-control-allow-origin": "*",
+        "cache-control": "no-store",
+      });
+      res.end(JSON.stringify({
+        ok: true,
+        chainId: this.chainId,
+        gate: this.cfg.gateAddress,
+        asset: this.cfg.assetAddress,
+        attester: this.wallet.address,
+        mode: this.cfg.usePolling ? "polling" : "events",
+        startedAt: this.startedAt,
+        lastDecision: this.lastDecision,
+      }));
+    });
+    this.healthServer.listen(port, "0.0.0.0", () => {
+      console.log(`[sluice-agent] health endpoint listening on :${port}/health`);
+    });
   }
 
   // -------------------- snapshot + engine --------------------
@@ -276,6 +312,18 @@ export class SluiceAgent {
       `[sluice-agent] req ${requestId} ${decision.decision} | score=${risk.deterministicScore} ` +
         `hardBlock=${risk.hardBlock} reason=${decision.primaryReason}`
     );
+    this.lastDecision = {
+      requestId,
+      decision: decision.decision,
+      deterministicScore: decision.deterministicScore,
+      hardBlock: decision.hardBlock,
+      primaryReason: decision.primaryReason,
+      aiParticipated: decision.aiParticipated,
+      aiClassification: decision.aiClassification,
+      aiConfidence: decision.aiConfidence,
+      aiReason: decision.aiReason,
+      at: new Date().toISOString(),
+    };
 
     const method = decision.decision === "APPROVE" ? "approve" : "blockRequest";
     const tx = await this.gate[method](requestId, att);
@@ -334,6 +382,7 @@ async function main() {
     attestationTtlSec: process.env.ATTESTATION_TTL ? Number(process.env.ATTESTATION_TTL) : 600,
     usePolling: process.env.SLUICE_POLL === "1",
   });
+  agent.startHealthServer(process.env.AGENT_HEALTH_PORT ? Number(process.env.AGENT_HEALTH_PORT) : 8787);
   await agent.start();
 }
 

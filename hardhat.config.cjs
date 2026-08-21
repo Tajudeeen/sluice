@@ -51,6 +51,19 @@ module.exports = {
   etherscan: {
     apiType: "etherscan",
     enabled: true,
+    apiKey: {
+      bot: process.env.BOT_EXPLORER_API_KEY || "",
+    },
+    customChains: [
+      {
+        network: "bot",
+        chainId: 677,
+        urls: {
+          apiURL: process.env.BOT_EXPLORER_API_URL || "https://scan.botchain.ai/api",
+          browserURL: process.env.BOT_EXPLORER_URL || "https://scan.botchain.ai/",
+        },
+      },
+    ],
   },
   paths: {
     sources: "./contracts/src",

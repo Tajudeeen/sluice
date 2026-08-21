@@ -12,6 +12,7 @@ export const NETWORK_TAG = (import.meta.env.VITE_NETWORK_TAG as string) || "BOT 
 export const RPC_URL = (import.meta.env.VITE_BOT_RPC_URL as string) || "https://rpc.botchain.ai/";
 export const EXPLORER_URL = (import.meta.env.VITE_EXPLORER_URL as string) || "https://scan.botchain.ai/";
 export const ATTESTER_ADDRESS = (import.meta.env.VITE_ATTESTER_ADDRESS as string) || "";
+export const AGENT_HEALTH_URL = (import.meta.env.VITE_AGENT_HEALTH_URL as string) || "";
 
 // Whether the build was wired with live contract addresses. Drives demo-mode UI.
 export const CONFIGURED = !!GATE_ADDRESS && !!ASSET_ADDRESS;

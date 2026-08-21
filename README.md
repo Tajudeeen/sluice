@@ -173,6 +173,35 @@ build without `VITE_GATE_ADDRESS`/`VITE_ASSET_ADDRESS` shows an intentional
 mainnet-gas token) instead of a broken state. Publish with `scripts/publish-pages.sh`
 to a `gh-pages` branch and enable GitHub Pages (root) in repo Settings.
 
+## Live BOT Chain deployment
+
+The current public build is wired to BOT Chain (chain ID 677):
+
+- Frontend: https://tajudeeen.github.io/sluice/
+- Registry: `0x5d3E0B5c981cfC3127d165DB3E28B1F608eBCc3E`
+- SluiceAsset: `0x8CC42b34692B5555865e92ebD9eA3F328868783a`
+- SluiceGate: `0x94037b2D299343b3D4FA02b2432512d263FB537C`
+- Authorized attester: `0x2818DA030a19Ac0e84e9bA64Fef1AF3941668871`
+
+Judge flow: open `/firewall`, connect a wallet on BOT Chain, claim synthetic
+SLUSD, submit a small transfer for an APPROVE, then run the fixed-target
+concentration test for a deterministic BLOCK. The off-chain agent must be online
+for settlement; its `/health` endpoint can be surfaced through
+`VITE_AGENT_HEALTH_URL`.
+
+### Host the agent
+
+The root `Dockerfile` packages the agent for an always-on container host. Set
+`SLUICE_RPC_URL`, `SLUICE_GATE_ADDRESS`, `SLUICE_ASSET_ADDRESS`,
+`ATTESTER_PRIVATE_KEY`, `SLUICE_POLL=1`, and optionally `ANTHROPIC_API_KEY` as
+host secrets. Expose port `8787`; the health check is `GET /health`. Never put
+the attester or AI key in the frontend or repository.
+
+For Render, `render.yaml` is included. Create a Blueprint from this repository,
+enter `ATTESTER_PRIVATE_KEY` and `ANTHROPIC_API_KEY` as secret values, then set
+`VITE_AGENT_HEALTH_URL` to the resulting Render service URL and rebuild the
+frontend. BOTScan verification additionally requires `BOT_EXPLORER_API_KEY`.
+
 Security invariants
 
 - Off-chain agent is advisory enforcement, never custody. The gate re-verifies everything.

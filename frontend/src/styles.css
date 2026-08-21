@@ -485,6 +485,9 @@ button.danger:hover { background: var(--ink); box-shadow: 4px 4px 0 var(--bad); 
 /* Deployment */
 .deploy-info.demo-mode { background: #f8f1d8; }
 .deploy-info h2 { display: flex; align-items: center; gap: 10px; }
+.agent-status { background: #e8f1e8; }
+.agent-status h2 { margin-bottom: 8px; }
+.agent-decision { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); font: 600 11px/1.45 var(--mono); }
 .deploy-info.demo-mode h2::before { content: "LOCAL"; padding: 4px 6px; background: var(--acid); color: #171814; font: 700 9px/1 var(--mono); }
 .demo-steps, .deploy-steps { display: flex; flex-direction: column; margin: 18px 0; border-top: 1px solid var(--line); }
 .demo-steps > div, .deploy-steps > div { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 12px; }

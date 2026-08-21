@@ -13,6 +13,7 @@ import RedemptionForm from "../components/RedemptionForm";
 import DecisionFeed from "../components/DecisionFeed";
 import ScenarioSimulator from "../components/ScenarioSimulator";
 import DeploymentInfo from "../components/DeploymentInfo";
+import AgentStatus from "../components/AgentStatus";
 import type { RequestView } from "../lib/types";
 
 function fmt(b: bigint): string {
@@ -137,6 +138,8 @@ export default function Firewall() {
         {configured && pool && (
           <ScenarioSimulator pool={pool} />
         )}
+
+        {configured && <AgentStatus />}
 
         <DecisionFeed requests={recent} />
 

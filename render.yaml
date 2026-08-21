@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: sluice-agent
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: SLUICE_RPC_URL
+        value: https://rpc.botchain.ai/
+      - key: SLUICE_GATE_ADDRESS
+        value: 0x94037b2D299343b3D4FA02b2432512d263FB537C
+      - key: SLUICE_ASSET_ADDRESS
+        value: 0x8CC42b34692B5555865e92ebD9eA3F328868783a
+      - key: SLUICE_POLL
+        value: "1"
+      - key: AGENT_HEALTH_PORT
+        value: "8787"
+      - key: ATTESTER_PRIVATE_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false

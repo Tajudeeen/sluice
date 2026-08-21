@@ -1,0 +1,10 @@
+node_modules
+.git
+.env
+frontend
+artifacts
+cache
+contracts
+docs
+scripts
+*.md
