@@ -70,7 +70,10 @@ async function main() {
     };
     console.log("Using CLI-provided addresses/args.");
   } else {
-    const file = path.join("artifacts", `deployment.${networkName}.json`);
+    const overrideFile = process.env.DEPLOYMENT_FILE;
+    const generatedFile = path.join("artifacts", `deployment.${networkName}.json`);
+    const documentedFile = path.join("docs", "live-deployment.json");
+    const file = overrideFile || (fs.existsSync(generatedFile) ? generatedFile : documentedFile);
     if (!fs.existsSync(file)) {
       throw new Error(
         `No deployment artifacts found at ${file}.\nRun scripts/deploy.ts first (npx hardhat run scripts/deploy.ts --network ${networkName}).`

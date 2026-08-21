@@ -200,7 +200,9 @@ the attester or AI key in the frontend or repository.
 For Render, `render.yaml` is included. Create a Blueprint from this repository,
 enter `ATTESTER_PRIVATE_KEY` and `ANTHROPIC_API_KEY` as secret values, then set
 `VITE_AGENT_HEALTH_URL` to the resulting Render service URL and rebuild the
-frontend. BOTScan verification additionally requires `BOT_EXPLORER_API_KEY`.
+frontend. `npm run verify:bot` uses the public deployment metadata in
+`docs/live-deployment.json`; BOTScan accepts the default Blockscout placeholder
+token, while `BOT_EXPLORER_API_KEY` remains available as an override.
 
 Security invariants
 

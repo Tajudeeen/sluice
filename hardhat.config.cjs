@@ -52,7 +52,8 @@ module.exports = {
     apiType: "etherscan",
     enabled: true,
     apiKey: {
-      bot: process.env.BOT_EXPLORER_API_KEY || "",
+      // BOTScan is Blockscout-compatible and accepts a non-secret placeholder.
+      bot: process.env.BOT_EXPLORER_API_KEY || "blockscout",
     },
     customChains: [
       {
