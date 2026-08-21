@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ethers } from "ethers";
 import {
   GATE_ADDRESS, GATE_ABI, ASSET_ADDRESS, ASSET_ABI,
-  RPC_URL, shortAddr, explorerTx,
+  RPC_URL, shortAddr, explorerTx, notifyAgent,
 } from "../sluice";
 import DecisionBreakdown from "./DecisionBreakdown";
 import { project, type Projection } from "../lib/projection";
@@ -45,6 +45,7 @@ export default function ScenarioSimulator({ pool }: { pool: { holders: { address
       // 2) attacker requests the transfer -> REAL on-chain lock + RequestCreated
       const tx = await gate.requestTransfer(DEMO_ATTACK_TARGET, ATTACK_AMOUNT);
       const receipt = await tx.wait();
+      void notifyAgent();
       setTxHash(receipt.hash);
     } catch (err: any) {
       setError(err?.shortMessage || err?.message || "Attack simulation failed.");

@@ -16,10 +16,14 @@
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
     "verify:bot": "hardhat run scripts/verify.ts --network bot",
     "agent": "node agent/dist/listener.js",
+    "worker:dev": "wrangler dev",
+    "worker:deploy": "wrangler deploy",
+    "worker:typecheck": "tsc -p worker/tsconfig.json --noEmit",
     "frontend": "vite --config frontend/vite.config.ts",
     "frontend:build": "vite build --config frontend/vite.config.ts"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260821.1",
     "@nomicfoundation/hardhat-chai-matchers": "^2.0.7",
     "@nomicfoundation/hardhat-ethers": "^3.0.8",
     "@nomicfoundation/hardhat-network-helpers": "^1.0.11",
@@ -39,7 +43,8 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4",
     "vite": "^5.4.6",
-    "vitest": "^2.0.5"
+    "vitest": "^2.0.5",
+    "wrangler": "^4.125.0"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.2",

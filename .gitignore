@@ -1,6 +1,8 @@
 node_modules
 dist
 .env
+.dev.vars
+.wrangler
 artifacts
 cache
 frontend/dist

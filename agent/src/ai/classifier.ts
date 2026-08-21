@@ -9,6 +9,26 @@ import type { AiContext, PoolSnapshot, ProposedTx, RiskAssessment } from "../typ
 export interface ClassifierResult extends AiContext {}
 export type AiProvider = "groq" | "anthropic" | "deterministic";
 
+export interface AiRuntimeConfig {
+  GROQ_API_KEY?: string;
+  GROQ_MODEL?: string;
+  ANTHROPIC_API_KEY?: string;
+  ANTHROPIC_MODEL?: string;
+}
+
+let runtimeConfig: AiRuntimeConfig | undefined;
+
+// Workers cannot read Node's process.env. The Node listener uses process.env by
+// default; the Cloudflare adapter injects secrets through this hook.
+export function configureAiEnvironment(config: AiRuntimeConfig): void {
+  runtimeConfig = config;
+}
+
+function env(name: keyof AiRuntimeConfig): string | undefined {
+  if (runtimeConfig?.[name]) return runtimeConfig[name];
+  return typeof process !== "undefined" ? process.env[name] : undefined;
+}
+
 const SYSTEM = `You are a behavioral-risk classifier for an on-chain execution firewall called Sluice.
 You analyze a proposed tokenized-asset transaction against the current and projected
 holder distribution, recent transaction history, and deterministic risk scores.
@@ -25,8 +45,8 @@ wallets to fake activity. UNUSUAL_ACTIVITY for timing/volume that is atypical. N
 otherwise. Use INSUFFICIENT_DATA only when the provided context is genuinely too sparse.`;
 
 export function configuredAiProvider(): AiProvider {
-  if (process.env.GROQ_API_KEY) return "groq";
-  if (process.env.ANTHROPIC_API_KEY) return "anthropic";
+  if (env("GROQ_API_KEY")) return "groq";
+  if (env("ANTHROPIC_API_KEY")) return "anthropic";
   return "deterministic";
 }
 
@@ -38,7 +58,7 @@ export async function classify(
 ): Promise<ClassifierResult> {
   const user = buildPrompt(snap, tx, risk, historySummary);
 
-  if (process.env.GROQ_API_KEY) {
+  if (env("GROQ_API_KEY")) {
     try {
       return sanitize(await classifyWithGroq(user));
     } catch (err) {
@@ -46,7 +66,7 @@ export async function classify(
     }
   }
 
-  if (process.env.ANTHROPIC_API_KEY) {
+  if (env("ANTHROPIC_API_KEY")) {
     try {
       return sanitize(await classifyWithAnthropic(user));
     } catch (err) {
@@ -90,11 +110,11 @@ function buildPrompt(
 }
 
 async function classifyWithGroq(user: string): Promise<string> {
-  const model = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
+  const model = env("GROQ_MODEL") || "openai/gpt-oss-20b";
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
-      authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      authorization: `Bearer ${env("GROQ_API_KEY")}`,
       "content-type": "application/json",
     },
     body: JSON.stringify({
@@ -117,9 +137,9 @@ async function classifyWithGroq(user: string): Promise<string> {
 
 async function classifyWithAnthropic(user: string): Promise<string> {
   const Anthropic = (await import("@anthropic-ai/sdk")).default;
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new Anthropic({ apiKey: env("ANTHROPIC_API_KEY") });
   const msg = await client.messages.create({
-    model: process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-latest",
+    model: env("ANTHROPIC_MODEL") || "claude-3-5-haiku-latest",
     max_tokens: 300,
     system: SYSTEM,
     messages: [{ role: "user", content: user }],

@@ -13,6 +13,17 @@ export const RPC_URL = (import.meta.env.VITE_BOT_RPC_URL as string) || "https://
 export const EXPLORER_URL = (import.meta.env.VITE_EXPLORER_URL as string) || "https://scan.botchain.ai/";
 export const ATTESTER_ADDRESS = (import.meta.env.VITE_ATTESTER_ADDRESS as string) || "";
 export const AGENT_HEALTH_URL = (import.meta.env.VITE_AGENT_HEALTH_URL as string) || "";
+export const AGENT_PROCESS_URL = (import.meta.env.VITE_AGENT_PROCESS_URL as string) || AGENT_HEALTH_URL;
+
+export async function notifyAgent(requestId?: bigint | number): Promise<void> {
+  if (!AGENT_PROCESS_URL) return;
+  const path = requestId === undefined ? "/process/latest" : `/process/${requestId.toString()}`;
+  try {
+    await fetch(`${AGENT_PROCESS_URL.replace(/\/$/, "")}${path}`, { method: "POST" });
+  } catch {
+    // The scheduled Worker recovery path handles an unavailable browser callback.
+  }
+}
 
 // Whether the build was wired with live contract addresses. Drives demo-mode UI.
 export const CONFIGURED = !!GATE_ADDRESS && !!ASSET_ADDRESS;

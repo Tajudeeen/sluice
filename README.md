@@ -205,6 +205,14 @@ frontend. `npm run verify:bot` uses the public deployment metadata in
 `docs/live-deployment.json`; BOTScan accepts the default Blockscout placeholder
 token, while `BOT_EXPLORER_API_KEY` remains available as an override.
 
+### Cloudflare Worker (free-plan option)
+
+The repository also includes a Cloudflare-compatible Worker in `worker/`.
+It exposes `/health`, `/process/latest`, and a one-minute scheduled recovery trigger.
+Follow [`docs/cloudflare-worker.md`](docs/cloudflare-worker.md) for the exact setup.
+Cloudflare secrets must be named `GROQ_API_KEY` and `ATTESTER_PRIVATE_KEY` exactly;
+they are never exposed to the frontend.
+
 Security invariants
 
 - Off-chain agent is advisory enforcement, never custody. The gate re-verifies everything.
