@@ -2,17 +2,12 @@ import type { AiContext, PoolSnapshot, ProposedTx, RiskAssessment } from "../typ
 
 // AI CONTEXT LAYER: server-side ONLY.
 //
-// This module calls an LLM to classify the BEHAVIORAL CONTEXT of a proposed
-// transaction. It is a contextual intelligence layer, NOT a transaction signer.
-// It returns a structured JSON classification and NEVER returns executable
-// instructions or calldata. The output is purely advisory: the deterministic
-// Decision Engine is the final authority and can ignore the AI entirely.
-//
-// If ANTHROPIC_API_KEY is absent, we run a deterministic fallback so the system
-// still works end-to-end (honest: we label it INSUFFICIENT_DATA). This keeps the
-// demo runnable without secrets while making the LLM's role explicit in code.
+// The model classifies behavioral context and never returns calldata or signs a
+// transaction. Deterministic rules remain authoritative: AI can only tip a
+// REVIEW-band request to BLOCK and can never override a hard block.
 
 export interface ClassifierResult extends AiContext {}
+export type AiProvider = "groq" | "anthropic" | "deterministic";
 
 const SYSTEM = `You are a behavioral-risk classifier for an on-chain execution firewall called Sluice.
 You analyze a proposed tokenized-asset transaction against the current and projected
@@ -29,68 +24,122 @@ concentrate control. WASH_TRADE_PATTERN_SUSPECT when transfers bounce between th
 wallets to fake activity. UNUSUAL_ACTIVITY for timing/volume that is atypical. NORMAL
 otherwise. Use INSUFFICIENT_DATA only when the provided context is genuinely too sparse.`;
 
+export function configuredAiProvider(): AiProvider {
+  if (process.env.GROQ_API_KEY) return "groq";
+  if (process.env.ANTHROPIC_API_KEY) return "anthropic";
+  return "deterministic";
+}
+
 export async function classify(
   snap: PoolSnapshot,
   tx: ProposedTx,
   risk: RiskAssessment,
   historySummary: string
 ): Promise<ClassifierResult> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return fallback(tx, risk);
-  }
-  try {
-    // Imported lazily so the dependency is only required when a key is present.
-    const Anthropic = (await import("@anthropic-ai/sdk")).default;
-    const client = new Anthropic({ apiKey });
-    const top = snap.holders
-      .slice()
-      .sort((a, b) => (b.balance > a.balance ? 1 : -1))
-      .slice(0, 5)
-      .map((h) => ({
-        address: h.address,
-        pct: ((Number(h.balance) / Number(snap.totalSupply)) * 100).toFixed(2),
-      }));
+  const user = buildPrompt(snap, tx, risk, historySummary);
 
-    const user = JSON.stringify({
-      proposedTx: tx,
-      currentHHI: risk.current.hhi,
-      projectedHHI: risk.projected.hhi,
-      projectedLargestHolderPct: risk.projected.largestHolderPct,
-      topHolders: top,
-      deterministicScore: risk.deterministicScore,
-      concentrationScore: risk.concentrationScore,
-      liquidityScore: risk.liquidityScore,
-      anomalyScore: risk.anomalyScore,
-      anomalyReasons: risk.anomalyReasons,
-      recentHistory: historySummary,
-    });
-
-    const msg = await client.messages.create({
-      model: "claude-3-5-haiku-latest",
-      max_tokens: 300,
-      system: SYSTEM,
-      messages: [{ role: "user", content: user }],
-    });
-    const text = msg.content
-      .filter((b: any) => b.type === "text")
-      .map((b: any) => b.text)
-      .join("");
-    return sanitize(text);
-  } catch (err) {
-    // On any LLM failure, fall back to deterministic classification. The firewall
-    // must never depend on the LLM being available.
-    return fallback(tx, risk);
+  if (process.env.GROQ_API_KEY) {
+    try {
+      return sanitize(await classifyWithGroq(user));
+    } catch (err) {
+      return fallback(risk, `Groq unavailable: ${safeError(err)}`);
+    }
   }
+
+  if (process.env.ANTHROPIC_API_KEY) {
+    try {
+      return sanitize(await classifyWithAnthropic(user));
+    } catch (err) {
+      return fallback(risk, `Anthropic unavailable: ${safeError(err)}`);
+    }
+  }
+
+  return fallback(risk, "No AI API key configured; deterministic-only classification.");
 }
 
-// Parse + validate the model output. Unknown shapes -> INSUFFICIENT_DATA.
+function buildPrompt(
+  snap: PoolSnapshot,
+  tx: ProposedTx,
+  risk: RiskAssessment,
+  historySummary: string
+): string {
+  const top = snap.holders
+    .slice()
+    .sort((a, b) => (b.balance > a.balance ? 1 : -1))
+    .slice(0, 5)
+    .map((h) => ({
+      address: h.address,
+      pct: ((Number(h.balance) / Number(snap.totalSupply)) * 100).toFixed(2),
+    }));
+
+  // Convert bigint explicitly. JSON.stringify(bigint) throws and previously
+  // caused every real provider call to fall back before reaching the API.
+  return JSON.stringify({
+    proposedTx: { ...tx, amount: tx.amount.toString() },
+    currentHHI: risk.current.hhi,
+    projectedHHI: risk.projected.hhi,
+    projectedLargestHolderPct: risk.projected.largestHolderPct,
+    topHolders: top,
+    deterministicScore: risk.deterministicScore,
+    concentrationScore: risk.concentrationScore,
+    liquidityScore: risk.liquidityScore,
+    anomalyScore: risk.anomalyScore,
+    anomalyReasons: risk.anomalyReasons,
+    recentHistory: historySummary,
+  });
+}
+
+async function classifyWithGroq(user: string): Promise<string> {
+  const model = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0,
+      max_completion_tokens: 500,
+      ...(model.includes("gpt-oss") ? { reasoning_effort: "low" } : {}),
+      messages: [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: user },
+      ],
+    }),
+  });
+  const body = await response.json() as any;
+  if (!response.ok) {
+    throw new Error(`${response.status} ${body?.error?.message || response.statusText}`);
+  }
+  return body?.choices?.[0]?.message?.content || "";
+}
+
+async function classifyWithAnthropic(user: string): Promise<string> {
+  const Anthropic = (await import("@anthropic-ai/sdk")).default;
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const msg = await client.messages.create({
+    model: process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-latest",
+    max_tokens: 300,
+    system: SYSTEM,
+    messages: [{ role: "user", content: user }],
+  });
+  return msg.content
+    .filter((b: any) => b.type === "text")
+    .map((b: any) => b.text)
+    .join("");
+}
+
+// Parse and validate model output. Unknown shapes cannot influence a decision.
 function sanitize(raw: string): ClassifierResult {
   let parsed: any;
   try {
-    parsed = JSON.parse(raw);
+    const start = raw.indexOf("{");
+    const end = raw.lastIndexOf("}");
+    if (start < 0 || end <= start) throw new Error("missing JSON object");
+    parsed = JSON.parse(raw.slice(start, end + 1));
   } catch {
-    return { classification: "INSUFFICIENT_DATA", confidence: 0, reason: "LLM returned non-JSON" };
+    return { classification: "INSUFFICIENT_DATA", confidence: 0, reason: "AI returned invalid JSON" };
   }
   const allowed = [
     "NORMAL",
@@ -100,7 +149,7 @@ function sanitize(raw: string): ClassifierResult {
     "INSUFFICIENT_DATA",
   ];
   if (!allowed.includes(parsed.classification)) {
-    return { classification: "INSUFFICIENT_DATA", confidence: 0, reason: "LLM returned unknown classification" };
+    return { classification: "INSUFFICIENT_DATA", confidence: 0, reason: "AI returned unknown classification" };
   }
   const confidence =
     typeof parsed.confidence === "number"
@@ -109,29 +158,33 @@ function sanitize(raw: string): ClassifierResult {
   return {
     classification: parsed.classification as ClassifierResult["classification"],
     confidence,
-    reason: typeof parsed.reason === "string" ? parsed.reason : "",
+    reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 240) : "",
   };
 }
 
-// Deterministic fallback used when no API key is configured or the LLM fails.
-function fallback(tx: ProposedTx, risk: RiskAssessment): ClassifierResult {
+function fallback(risk: RiskAssessment, unavailableReason: string): ClassifierResult {
   if (risk.hardBlock) {
     return {
       classification: "COORDINATED_CLUSTER_SUSPECT",
       confidence: 0.6,
-      reason: "Deterministic hard-block signal present; classified as coordinated-concentration suspect (no LLM).",
+      reason: `Deterministic hard-block signal present. ${unavailableReason}`,
     };
   }
   if (risk.anomalyScore >= 60) {
     return {
       classification: "UNUSUAL_ACTIVITY",
       confidence: 0.5,
-      reason: "Elevated anomaly score; flagged unusual activity (no LLM).",
+      reason: `Elevated deterministic anomaly score. ${unavailableReason}`,
     };
   }
   return {
     classification: "INSUFFICIENT_DATA",
     confidence: 0,
-    reason: "No ANTHROPIC_API_KEY configured; deterministic-only classification.",
+    reason: unavailableReason,
   };
+}
+
+function safeError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.replace(/[\r\n]+/g, " ").slice(0, 160);
 }

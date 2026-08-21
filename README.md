@@ -93,8 +93,9 @@ npm run frontend                 # http://localhost:5173
 
 Set `SLUICE_GATE_ADDRESS`, `SLUICE_ASSET_ADDRESS`, and `ATTESTER_PRIVATE_KEY` for the
 agent (see `.env.example`). The agent reads `.env` via `dotenv`. To exercise the AI
-review band, set `ANTHROPIC_API_KEY`: without it the system runs a deterministic
-fallback and labels itself `INSUFFICIENT_DATA` honestly.
+review band, set `GROQ_API_KEY` (free-tier friendly) or `ANTHROPIC_API_KEY`.
+Groq is preferred when both are present. Without either key the system runs a
+deterministic fallback and labels itself `INSUFFICIENT_DATA` honestly.
 
 ## Local end-to-end demo (the real loop)
 
@@ -193,12 +194,12 @@ for settlement; its `/health` endpoint can be surfaced through
 
 The root `Dockerfile` packages the agent for an always-on container host. Set
 `SLUICE_RPC_URL`, `SLUICE_GATE_ADDRESS`, `SLUICE_ASSET_ADDRESS`,
-`ATTESTER_PRIVATE_KEY`, `SLUICE_POLL=1`, and optionally `ANTHROPIC_API_KEY` as
-host secrets. Expose port `8787`; the health check is `GET /health`. Never put
+`ATTESTER_PRIVATE_KEY`, `SLUICE_POLL=1`, and `GROQ_API_KEY` as host secrets.
+`ANTHROPIC_API_KEY` remains an optional fallback. Expose port `8787`; the health check is `GET /health`. Never put
 the attester or AI key in the frontend or repository.
 
 For Render, `render.yaml` is included. Create a Blueprint from this repository,
-enter `ATTESTER_PRIVATE_KEY` and `ANTHROPIC_API_KEY` as secret values, then set
+enter `ATTESTER_PRIVATE_KEY` and `GROQ_API_KEY` as secret values, then set
 `VITE_AGENT_HEALTH_URL` to the resulting Render service URL and rebuild the
 frontend. `npm run verify:bot` uses the public deployment metadata in
 `docs/live-deployment.json`; BOTScan accepts the default Blockscout placeholder

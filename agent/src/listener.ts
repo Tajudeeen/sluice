@@ -19,13 +19,14 @@ import "dotenv/config";
 //   refunds the user. The agent is advisory enforcement, never custody.
 //
 // The agent is deterministic-first: the risk engine output drives the decision.
-// An LLM (if ANTHROPIC_API_KEY is set) may only tip a mid-risk REVIEW-band request
+// An LLM (Groq preferred, Anthropic optional) may only tip a mid-risk REVIEW-band request
 // to BLOCK; it can NEVER flip a deterministic HARD BLOCK or turn a BLOCK into APPROVE.
 
 import { ethers } from "ethers";
 import { createServer, type Server } from "node:http";
 import { DEFAULT_CONFIG, REASON, AI_CLASS, DECISION, type SluiceConfig } from "./config";
 import { decide, assessRisk } from "./decision/decision";
+import { configuredAiProvider } from "./ai/classifier";
 import type { PoolSnapshot, ProposedTx, RiskAssessment } from "./types";
 
 const GATE_ABI = [
@@ -157,6 +158,7 @@ export class SluiceAgent {
         asset: this.cfg.assetAddress,
         attester: this.wallet.address,
         mode: this.cfg.usePolling ? "polling" : "events",
+        aiProvider: configuredAiProvider(),
         startedAt: this.startedAt,
         lastDecision: this.lastDecision,
       }));
@@ -322,6 +324,7 @@ export class SluiceAgent {
       aiClassification: decision.aiClassification,
       aiConfidence: decision.aiConfidence,
       aiReason: decision.aiReason,
+      aiProvider: configuredAiProvider(),
       at: new Date().toISOString(),
     };
 

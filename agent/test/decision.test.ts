@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { decide, assessRisk } from "../src/decision/decision";
+import { configuredAiProvider } from "../src/ai/classifier";
 import { DEFAULT_CONFIG } from "../src/config";
 import type { PoolSnapshot, ProposedTx } from "../src/types";
 
@@ -22,6 +23,7 @@ describe("decision engine", () => {
   it("20) deterministic HARD BLOCK cannot be overridden by an LLM APPROVE", async () => {
     // Force the AI to confidently say APPROVE/NORMAL, then prove the decision is BLOCK.
     vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("GROQ_API_KEY", "");
     const snap: PoolSnapshot = {
       totalSupply: 1_000_000n * ONE,
       holders: [
@@ -40,6 +42,7 @@ describe("decision engine", () => {
 
   it("low-risk transaction approves", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("GROQ_API_KEY", "");
     const snap = demoSnapshot();
     const tx: ProposedTx = { type: "TRANSFER", requester: "E", recipient: "F", amount: 1000n * ONE };
     const d = await decide(snap, tx, [], 1000, DEFAULT_CONFIG);
@@ -49,6 +52,7 @@ describe("decision engine", () => {
 
   it("high-risk transaction blocks", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("GROQ_API_KEY", "");
     // Redeem 850k from A (only 350k) is impossible in reality, but for the engine
     // we test a redemption that drains liquidity below the floor.
     const snap: PoolSnapshot = { totalSupply: 1_000_000n * ONE, holders: [holder("A", 1000000)] };
@@ -61,6 +65,7 @@ describe("decision engine", () => {
 
   it("AI review-zone: clearly-suspect AI can block a mid-risk tx, but safe AI keeps APPROVE", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("GROQ_API_KEY", "");
     // Mid-risk txn: large-ish transfer from a repeated requester with burst history,
     // landing in the 40..69 band. With no API key the AI fallback returns
     // UNUSUAL_ACTIVITY only if anomaly>=60; here we just assert the band logic runs
@@ -90,5 +95,11 @@ describe("decision engine", () => {
     expect(risk.current.hhi).toBeGreaterThan(0);
     expect(risk.projected.hhi).toBeGreaterThan(risk.current.hhi); // concentration increases
     expect(risk.projected.largestHolderPct).toBeGreaterThan(risk.current.largestHolderPct);
+  });
+
+  it("prefers Groq when both AI providers are configured", () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "anthropic-test");
+    vi.stubEnv("GROQ_API_KEY", "groq-test");
+    expect(configuredAiProvider()).toBe("groq");
   });
 });

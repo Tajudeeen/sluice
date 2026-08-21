@@ -4,6 +4,7 @@ import { AGENT_HEALTH_URL } from "../sluice";
 interface Health {
   ok: boolean;
   mode?: string;
+  aiProvider?: string;
   lastDecision?: {
     decision: string;
     deterministicScore: number;
@@ -32,7 +33,7 @@ export default function AgentStatus() {
     <section className="card agent-status">
       <div className="card-label">ATTESTER / AI SIGNAL</div>
       <h2>{health?.ok ? "Agent online" : "Agent unreachable"}</h2>
-      {health?.ok && <p className="muted small">Settlement mode: <b>{health.mode}</b>. Deterministic rules remain authoritative.</p>}
+      {health?.ok && <p className="muted small">Settlement mode: <b>{health.mode}</b>. AI provider: <b>{health.aiProvider?.toUpperCase() || "UNKNOWN"}</b>. Deterministic rules remain authoritative.</p>}
       {d ? (
         <div className="agent-decision">
           <span>Last decision: <b>{d.decision}</b> - score {d.deterministicScore}</span>

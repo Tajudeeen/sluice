@@ -18,5 +18,9 @@ services:
         value: "8787"
       - key: ATTESTER_PRIVATE_KEY
         sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-20b
       - key: ANTHROPIC_API_KEY
         sync: false
