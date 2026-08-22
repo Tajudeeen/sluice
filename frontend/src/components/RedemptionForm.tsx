@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 import { ethers } from "ethers";
-import { ASSET_ABI, ASSET_ADDRESS, GATE_ABI, GATE_ADDRESS, notifyAgent } from "../sluice";
+import { ASSET_ABI, ASSET_ADDRESS, GATE_ABI, GATE_ADDRESS } from "../sluice";
 
 export default function RedemptionForm({ onSubmitted }: { onSubmitted?: () => void }) {
   const { isConnected, address } = useAccount();
@@ -29,7 +29,6 @@ export default function RedemptionForm({ onSubmitted }: { onSubmitted?: () => vo
       setNotice("2/2: submitting redemption request...");
       const reqHash = await writeContractAsync({ address: GATE_ADDRESS as `0x${string}`, abi: GATE_ABI, functionName: "requestRedeem", args: [amt] });
       await publicClient.waitForTransactionReceipt({ hash: reqHash });
-      void notifyAgent();
       setNotice(`Request submitted (tx ${reqHash.slice(0, 10)}...). The attester agent will settle it.`);
       setTimeout(() => { onSubmitted?.(); setNotice(null); }, 1500);
     } catch (err: any) {

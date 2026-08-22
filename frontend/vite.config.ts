@@ -15,5 +15,15 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("wagmi") || id.includes("viem") || id.includes("@walletconnect") || id.includes("@reown") || id.includes("@coinbase") || id.includes("@base-org")) return "wallet";
+          if (id.includes("ethers")) return "ethers";
+          return undefined;
+        },
+      },
+    },
   },
 });

@@ -22,7 +22,7 @@ export default function DeploymentInfo() {
         </p>
         <div className="demo-steps">
           <div><span className="ds-n">1</span> Fund the deployer with network gas</div>
-          <div><span className="ds-n">2</span><code>npm run deploy:bot</code> deploys to {CHAIN_NAME}</div>
+          <div><span className="ds-n">2</span><code>npm run deploy:somnia</code> deploys to {CHAIN_NAME}</div>
           <div><span className="ds-n">3</span> Add addresses and rebuild the interface</div>
         </div>
         <p className="muted small">

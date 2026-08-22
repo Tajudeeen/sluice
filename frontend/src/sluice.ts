@@ -4,26 +4,14 @@
 
 export const GATE_ADDRESS = (import.meta.env.VITE_GATE_ADDRESS as string) || "";
 export const ASSET_ADDRESS = (import.meta.env.VITE_ASSET_ADDRESS as string) || "";
-export const CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID || 677);
-// Human-facing chain name + short network tag. Lets one build target BOT mainnet,
-// Sepolia, or a local node and label itself correctly (no hardcoded "BOT Chain").
-export const CHAIN_NAME = (import.meta.env.VITE_CHAIN_NAME as string) || "BOT Chain";
-export const NETWORK_TAG = (import.meta.env.VITE_NETWORK_TAG as string) || "BOT Chain";
-export const RPC_URL = (import.meta.env.VITE_BOT_RPC_URL as string) || "https://rpc.botchain.ai/";
-export const EXPLORER_URL = (import.meta.env.VITE_EXPLORER_URL as string) || "https://scan.botchain.ai/";
+export const CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID || 50312);
+export const CHAIN_NAME = (import.meta.env.VITE_CHAIN_NAME as string) || "Somnia Shannon";
+export const NETWORK_TAG = (import.meta.env.VITE_NETWORK_TAG as string) || "Somnia Shannon";
+export const RPC_URL = (import.meta.env.VITE_RPC_URL as string) || "https://dream-rpc.somnia.network";
+export const EXPLORER_URL = (import.meta.env.VITE_EXPLORER_URL as string) || "https://shannon-explorer.somnia.network";
 export const ATTESTER_ADDRESS = (import.meta.env.VITE_ATTESTER_ADDRESS as string) || "";
 export const AGENT_HEALTH_URL = (import.meta.env.VITE_AGENT_HEALTH_URL as string) || "";
 export const AGENT_PROCESS_URL = (import.meta.env.VITE_AGENT_PROCESS_URL as string) || AGENT_HEALTH_URL;
-
-export async function notifyAgent(requestId?: bigint | number): Promise<void> {
-  if (!AGENT_PROCESS_URL) return;
-  const path = requestId === undefined ? "/process/latest" : `/process/${requestId.toString()}`;
-  try {
-    await fetch(`${AGENT_PROCESS_URL.replace(/\/$/, "")}${path}`, { method: "POST" });
-  } catch {
-    // The scheduled Worker recovery path handles an unavailable browser callback.
-  }
-}
 
 // Whether the build was wired with live contract addresses. Drives demo-mode UI.
 export const CONFIGURED = !!GATE_ADDRESS && !!ASSET_ADDRESS;

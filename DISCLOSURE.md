@@ -1,8 +1,8 @@
 # Sluice: Disclosure
 
-**Sluice is a hackathon demo, not a production system.** It is an *AI-native
-execution firewall for tokenized assets* built for the BOT Chain Builder
-Challenge #2. Everything below is disclosed plainly so reviewers can judge it
+**Sluice Markets is a hackathon demo, not a production system.** It is an
+AI-assisted, policy-controlled trading terminal for DreamDEX Event Contracts on
+Somnia Shannon. Everything below is disclosed plainly so reviewers can judge it
 without reading the source.
 
 ## 1. The asset is synthetic
@@ -15,8 +15,8 @@ without reading the source.
   intentionally open (capped per call) so judges/visitors can try the demo
   without pre-seeded funds, and exists purely to make the flow reachable. It
   only ever mints synthetic SLUSD — no real value.
-- Nothing in Sluice touches real money. Deployments to BOT Chain Mainnet use
-  real gas, but the contracts only ever move synthetic SLUSD.
+- Nothing in Sluice Markets touches custody or guarantees profit. Orders are
+  signed by the user's wallet and executed by DreamDEX on Somnia.
 
 ## 2. Single attester in v1 (not consensus)
 
@@ -44,10 +44,8 @@ without reading the source.
   honestly labels itself `INSUFFICIENT_DATA`. The demo works end-to-end without
   any LLM.
 
-The BOT Chain contracts and hosted attester are deployed, but the public live
-request counter is currently zero. The synthetic attacker holds SLUSD but no
-BOT for gas, so live BOT APPROVE/BLOCK transaction evidence still requires
-funding that wallet and running the two demo flows.
+The legacy escrow contracts and attester are retained as isolated reference
+code. The submitted product surface is the DreamDEX Event Contract terminal.
 
 ## 4. No fake claims
 

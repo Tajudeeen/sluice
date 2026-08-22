@@ -3,12 +3,21 @@ main = "worker/src/index.ts"
 compatibility_date = "2026-08-21"
 compatibility_flags = ["nodejs_compat"]
 
+[[durable_objects.bindings]]
+name = "SETTLEMENT_COORDINATOR"
+class_name = "SettlementCoordinator"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SettlementCoordinator"]
+
 [vars]
-SLUICE_RPC_URL = "https://rpc.botchain.ai/"
+SLUICE_RPC_URL = "https://dream-rpc.somnia.network"
 SLUICE_GATE_ADDRESS = "0x94037b2D299343b3D4FA02b2432512d263FB537C"
 SLUICE_ASSET_ADDRESS = "0x8CC42b34692B5555865e92ebD9eA3F328868783a"
 GROQ_MODEL = "openai/gpt-oss-20b"
 ATTESTATION_TTL = "600"
+DEMO_ATTACK_AMOUNT = "2200000"
 
 [triggers]
 crons = ["* * * * *"]

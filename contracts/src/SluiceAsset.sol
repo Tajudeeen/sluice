@@ -22,6 +22,8 @@ contract SluiceAsset is ERC20, ERC20Burnable, Ownable {
     error GateNotSet();
     error OnlyGate();
     error ZeroAddress();
+    error FaucetAlreadyClaimed();
+    error FaucetCapReached();
 
     event GateSet(address indexed gate);
 
@@ -93,10 +95,18 @@ contract SluiceAsset is ERC20, ERC20Burnable, Ownable {
     ///         SYNTHETIC DEMO ONLY. There is no real-world value and no mainnet
     ///         faucet claimable by the public; this exists purely to make the
     ///         demo flow reachable end-to-end without a pre-seeded recipient.
-    /// @dev Capped per-call to keep the demo distribution realistic and to avoid
-    ///      anyone draining the demo pool into a single wallet.
+    /// @dev One claim per address plus a global cap keeps the synthetic demo
+    ///      distribution bounded and prevents holder-list growth attacks.
     uint256 public constant FAUCET_AMOUNT = 50_000e18;
+    uint256 public constant FAUCET_CAP = 300_000e18;
+    uint256 public faucetMinted;
+    mapping(address => bool) public faucetClaimed;
+
     function faucet() external {
+        if (faucetClaimed[msg.sender]) revert FaucetAlreadyClaimed();
+        if (faucetMinted + FAUCET_AMOUNT > FAUCET_CAP) revert FaucetCapReached();
+        faucetClaimed[msg.sender] = true;
+        faucetMinted += FAUCET_AMOUNT;
         _mint(msg.sender, FAUCET_AMOUNT);
     }
 }

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "license": "MIT",
-  "description": "Policy-driven execution firewall for tokenized assets on BOT Chain",
+  "description": "Policy-controlled trading terminal for DreamDEX Event Contracts on Somnia",
   "scripts": {
     "build": "npm run build:contracts && npm run build:agent",
     "build:contracts": "hardhat compile",
@@ -12,9 +12,9 @@
     "test:agent": "vitest run --config agent/vitest.config.ts",
     "node": "hardhat node",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
-    "deploy:bot": "hardhat run scripts/deploy.ts --network bot",
+    "deploy:somnia": "hardhat run scripts/deploy.ts --network somnia",
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
-    "verify:bot": "hardhat run scripts/verify.ts --network bot",
+    "verify:somnia": "hardhat run scripts/verify.ts --network somnia",
     "agent": "node agent/dist/listener.js",
     "worker:dev": "wrangler dev",
     "worker:deploy": "wrangler deploy",
@@ -49,6 +49,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.2",
     "@openzeppelin/contracts": "^5.0.2",
+    "@somnia-chain/markets-sdk": "^0.28.1",
     "dotenv": "^16.4.5",
     "react-router-dom": "^6.30.4",
     "viem": "^2.21.0",

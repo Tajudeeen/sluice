@@ -1,5 +1,5 @@
 import { NavLink, Link } from "react-router-dom";
-import { CHAIN_ID, NETWORK_TAG } from "../sluice";
+import { DREAMDEX_CHAIN_ID } from "../dreamdex";
 import ThemeToggle from "./ThemeToggle";
 import WalletButton from "./WalletButton";
 
@@ -9,18 +9,21 @@ export default function SiteNav() {
     <header className="hero">
       <Link to="/" className="brand">
         <span className="logo-mark" aria-hidden="true"><i /><i /><i /></span>
-        <span className="logo">SLUICE</span>
-        <span className="net"><span className="dot" />{NETWORK_TAG}<span className="net-id">{CHAIN_ID}</span></span>
+        <span className="logo">SLUICE MARKETS</span>
+        <span className="net"><span className="dot" />SOMNIA SHANNON<span className="net-id">{DREAMDEX_CHAIN_ID}</span></span>
       </Link>
       <nav className="nav">
         <NavLink to="/" end className={({ isActive }) => (isActive ? "navlink on" : "navlink")}>
           Home
         </NavLink>
-        <NavLink to="/firewall" className={({ isActive }) => (isActive ? "navlink on" : "navlink")}>
-          Firewall
+        <NavLink to="/markets" className={({ isActive }) => (isActive ? "navlink on" : "navlink")}>
+          Markets
+        </NavLink>
+        <NavLink to="/portfolio" className={({ isActive }) => (isActive ? "navlink on" : "navlink")}>
+          Portfolio
         </NavLink>
         <NavLink to="/how" className={({ isActive }) => (isActive ? "navlink on" : "navlink")}>
-          Protocol
+          Architecture
         </NavLink>
       </nav>
       <div className="nav-actions">

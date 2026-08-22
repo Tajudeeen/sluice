@@ -3,8 +3,15 @@
 The Worker is the hosted attester adapter. It exposes:
 
 - `GET /health` for the frontend status panel.
-- `POST /process/latest` to settle pending requests immediately after a wallet transaction.
+- Protected `POST /process/latest` and `POST /process/:id` admin recovery routes.
 - A one-minute cron trigger that retries pending requests if the browser callback is missed.
+
+Settlement calls are routed through a per-gate Durable Object so concurrent cron,
+admin, and demo requests cannot race the attester wallet nonce.
+
+The `/process/latest` and `/process/:id` routes require
+`Authorization: Bearer <PROCESS_TOKEN>`. The browser does not receive this token;
+normal user requests are picked up by the cron trigger.
 
 ## One-time setup
 
@@ -26,22 +33,25 @@ Use the exact uppercase names below. Cloudflare secret names are case-sensitive:
 ```powershell
 npx wrangler secret put GROQ_API_KEY
 npx wrangler secret put ATTESTER_PRIVATE_KEY
+npx wrangler secret put DEMO_ATTACKER_PRIVATE_KEY
+npx wrangler secret put PROCESS_TOKEN
 ```
 
-Paste each value when prompted. Do not put either value in `wrangler.toml`, the frontend,
+Paste each value when prompted. Do not put these values in `wrangler.toml`, the frontend,
 or Git. The attester key must correspond to the authorized registry attester address:
 
 `0x2818DA030a19Ac0e84e9bA64Fef1AF3941668871`
 
 ## Test locally (optional)
 
-Create an ignored `.dev.vars` file with the same two secret names, then run:
+Create an ignored `.dev.vars` file with the same secret names, then run:
 
 ```powershell
 npx wrangler dev --local --env-file .dev.vars
 ```
 
-Open `http://127.0.0.1:8787/health`. A healthy response contains `chainId: 677`,
+Open `http://127.0.0.1:8787/health`. A healthy response contains the configured
+Somnia chain id,
 `attesterConfigured: true`, and either `groqConfigured: true` with
 `aiProvider: "groq"` or an explicit deterministic fallback when no AI key is
 available.

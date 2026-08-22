@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { ethers } from "ethers";
 import {
-  GATE_ADDRESS, GATE_ABI, ASSET_ADDRESS, ASSET_ABI,
-  RPC_URL, shortAddr, explorerTx, notifyAgent,
+  GATE_ADDRESS, ASSET_ADDRESS, AGENT_PROCESS_URL,
+  shortAddr, explorerTx,
 } from "../sluice";
 import DecisionBreakdown from "./DecisionBreakdown";
 import { project, type Projection } from "../lib/projection";
-import { ATTACK_AMOUNT, DEMO_ATTACK_TARGET, DEMO_ATTACKER_ADDRESS } from "../demoAttack";
+import { ATTACK_AMOUNT, DEMO_ATTACKER_ADDRESS } from "../demoAttack";
 
 // ScenarioSimulator: the demo centerpiece (spec §25).
 //
@@ -22,31 +22,27 @@ import { ATTACK_AMOUNT, DEMO_ATTACK_TARGET, DEMO_ATTACKER_ADDRESS } from "../dem
 export default function ScenarioSimulator({ pool }: { pool: { holders: { address: string; balance: bigint; pct: number }[]; totalSupply: bigint } }) {
   const [busy, setBusy] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const target = [...pool.holders]
+    .filter((holder) => holder.balance > 0n && holder.address.toLowerCase() !== DEMO_ATTACKER_ADDRESS.toLowerCase() && holder.address.toLowerCase() !== GATE_ADDRESS.toLowerCase())
+    .sort((a, b) => a.balance === b.balance ? 0 : a.balance > b.balance ? -1 : 1)[0]?.address || "";
 
   // Compute the projected-state preview from REAL current on-chain holdings.
   const preview: Projection = pool.totalSupply > 0n
-    ? project(pool.holders as any, pool.totalSupply, "TRANSFER", DEMO_ATTACKER_ADDRESS, DEMO_ATTACK_TARGET, ATTACK_AMOUNT)
+    ? project(pool.holders as any, pool.totalSupply, "TRANSFER", DEMO_ATTACKER_ADDRESS, target, ATTACK_AMOUNT)
     : (null as any);
 
   async function run() {
-    setError(null); setTxHash(null); setBusy(true);
+    setError(null); setNotice(null); setTxHash(null); setBusy(true);
     try {
-      const key = import.meta.env.VITE_DEMO_ATTACKER_KEY as string;
-      if (!key) throw new Error("Demo-attacker key not in this build. Rebuild with VITE_DEMO_ATTACKER_KEY from scripts/deploy.ts output.");
       if (!GATE_ADDRESS || !ASSET_ADDRESS) throw new Error("Contracts not configured in this build.");
-      const wallet = new ethers.Wallet(key, new ethers.JsonRpcProvider(RPC_URL));
-      const asset = new ethers.Contract(ASSET_ADDRESS, ASSET_ABI, wallet);
-      const gate = new ethers.Contract(GATE_ADDRESS, GATE_ABI, wallet);
-
-      // 1) attacker approves the gate
-      const ap = await asset.approve(GATE_ADDRESS, ATTACK_AMOUNT);
-      await ap.wait();
-      // 2) attacker requests the transfer -> REAL on-chain lock + RequestCreated
-      const tx = await gate.requestTransfer(DEMO_ATTACK_TARGET, ATTACK_AMOUNT);
-      const receipt = await tx.wait();
-      void notifyAgent();
-      setTxHash(receipt.hash);
+      if (!AGENT_PROCESS_URL) throw new Error("Hosted demo endpoint is not configured.");
+      const response = await fetch(`${AGENT_PROCESS_URL.replace(/\/$/, "")}/demo/attack`, { method: "POST" });
+      const body = await response.json() as { requestHash?: string; error?: string; status?: string; requestId?: number };
+      if (!response.ok) throw new Error(body.error || "Attack simulation failed.");
+      if (body.status === "already-run") setNotice(`Existing breach proof loaded (request #${body.requestId ?? "-"}).`);
+      setTxHash(body.requestHash || null);
     } catch (err: any) {
       setError(err?.shortMessage || err?.message || "Attack simulation failed.");
     } finally {
@@ -67,12 +63,13 @@ export default function ScenarioSimulator({ pool }: { pool: { holders: { address
           <div className="sim-params">
             <div><span>Proposed action</span><b>{ethers.formatUnits(ATTACK_AMOUNT, 18)} SLUSD transfer</b></div>
             <div><span>From</span><b>{shortAddr(DEMO_ATTACKER_ADDRESS)} (synthetic demo attacker)</b></div>
-            <div><span>To</span><b>{shortAddr(DEMO_ATTACK_TARGET)} (fixed target)</b></div>
+            <div><span>To</span><b>{shortAddr(target)} (live largest holder)</b></div>
           </div>
-          <button className="danger big" onClick={run} disabled={busy || !pool.totalSupply}>
+          <button className="danger big" onClick={run} disabled={busy || !pool.totalSupply || !target}>
             {busy ? "Executing on-chain…" : "Run breach test"}
           </button>
           {txHash && <p className="ok"><a href={explorerTx(txHash)} target="_blank" rel="noreferrer">Open transaction ↗</a></p>}
+          {notice && <p className="ok">{notice}</p>}
           {error && <p className="err">{error}</p>}
         </div>
         {preview && (

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 import { ethers } from "ethers";
-import { ASSET_ABI, ASSET_ADDRESS, GATE_ABI, GATE_ADDRESS, notifyAgent } from "../sluice";
+import { ASSET_ABI, ASSET_ADDRESS, GATE_ABI, GATE_ADDRESS } from "../sluice";
 
 export default function TransferForm({ onSubmitted }: { onSubmitted?: () => void }) {
   const { address, isConnected } = useAccount();
@@ -32,7 +32,6 @@ export default function TransferForm({ onSubmitted }: { onSubmitted?: () => void
       setNotice("2/2: submitting transfer request...");
       const reqHash = await writeContractAsync({ address: GATE_ADDRESS as `0x${string}`, abi: GATE_ABI, functionName: "requestTransfer", args: [recipient as `0x${string}`, amt] });
       await publicClient.waitForTransactionReceipt({ hash: reqHash });
-      void notifyAgent();
       setNotice(`Request submitted (tx ${reqHash.slice(0, 10)}...). The attester agent will settle it.`);
       setTimeout(() => { onSubmitted?.(); setNotice(null); }, 1500);
     } catch (err: any) {

@@ -1,22 +1,10 @@
 {
-  "network": "BOT Chain",
-  "chainId": 677,
+  "network": "Somnia Shannon",
+  "chainId": 50312,
   "frontend": "https://tajudeeen.github.io/sluice/",
-  "worker": "https://sluice-agent.tajudeenowoeteniyan.workers.dev",
-  "registry": "0x5d3E0B5c981cfC3127d165DB3E28B1F608eBCc3E",
-  "asset": "0x8CC42b34692B5555865e92ebD9eA3F328868783a",
-  "gate": "0x94037b2D299343b3D4FA02b2432512d263FB537C",
-  "attester": "0x2818DA030a19Ac0e84e9bA64Fef1AF3941668871",
-  "explorer": "https://scan.botchain.ai/",
-  "timeout": 3600,
-  "constructorArgs": {
-    "registry": ["0x2818DA030a19Ac0e84e9bA64Fef1AF3941668871"],
-    "asset": ["Sluice Liquidity Unit", "SLUSD", "0x2818DA030a19Ac0e84e9bA64Fef1AF3941668871"],
-    "gate": ["0x8CC42b34692B5555865e92ebD9eA3F328868783a", "0x5d3E0B5c981cfC3127d165DB3E28B1F608eBCc3E", 3600]
-  },
-  "verification": {
-    "registry": "verified",
-    "asset": "verified",
-    "gate": "pending explorer retry"
-  }
+  "rpc": "https://dream-rpc.somnia.network",
+  "explorer": "https://shannon-explorer.somnia.network",
+  "dreamdexIndexer": "https://dev.smk.somnia.host/v1/graphql",
+  "dreamdexSdk": "@somnia-chain/markets-sdk@0.28.1",
+  "integration": "DreamDEX Event Contracts"
 }

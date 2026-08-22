@@ -1,6 +1,6 @@
 // Sluice verification script.
 //
-//   npx hardhat run scripts/verify.ts --network bot
+//   npx hardhat run scripts/verify.ts --network somnia
 //
 // Reads the deployment artifacts written by scripts/deploy.ts
 // (artifacts/deployment.<network>.json) and submits each contract for
@@ -11,7 +11,7 @@
 // failure per-contract and continues, rather than aborting the whole run.
 //
 // You can also pass explicit addresses + args on the command line:
-//   npx hardhat run scripts/verify.ts --network bot \
+//   npx hardhat run scripts/verify.ts --network somnia \
 //     -- <asset> <registry> <gate> \
 //     --args '["Sluice Liquidity Unit","SLUSD","0xATTESTER"]' \
 //            '[["0xATTESTER"]]' \

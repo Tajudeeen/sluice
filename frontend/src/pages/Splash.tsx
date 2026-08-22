@@ -1,80 +1,24 @@
 import { Link } from "react-router-dom";
-import { SLUICE_META, NETWORK_TAG } from "../sluice";
 
-// Landing / splash page. Hero + the core promise + entry points into the app.
 export default function Splash() {
-  return (
-    <div className="splash">
-      <div className="bg" aria-hidden="true" />
-
-      <section className="hero-splash">
-        <div className="hero-copy">
-          <div className="eyebrow"><span>Execution control</span><span>{NETWORK_TAG}</span></div>
-          <h1>Stop unsafe token movement <em>before</em> it settles.</h1>
-          <p className="lede">
-            {SLUICE_META.assetSymbol} cannot move around the gate. Every transfer is escrowed,
-            checked against live pool state, then released or refunded by policy.
-          </p>
-          <div className="cta-row">
-            <Link to="/firewall" className="primary big">Open control room <span>↗</span></Link>
-            <Link to="/how" className="ghost big">Read the protocol</Link>
-          </div>
-        </div>
-
-        <div className="hero-diagram" aria-label="Sluice settlement sequence">
-          <div className="diagram-head"><span>TRANSFER / 00421</span><b>POLICY GATE</b></div>
-          <div className="diagram-route">
-            <div className="diagram-node"><span>01</span><b>LOCK</b><small>Funds enter escrow</small></div>
-            <div className="diagram-line"><i /></div>
-            <div className="diagram-node active"><span>02</span><b>CHECK</b><small>Projected state tested</small></div>
-            <div className="diagram-line"><i /></div>
-            <div className="diagram-node"><span>03</span><b>SETTLE</b><small>Release or refund</small></div>
-          </div>
-          <div className="diagram-result"><span>HARD LIMITS</span><b>ENFORCED ON-CHAIN</b></div>
-        </div>
-      </section>
-
-      <section className="proof-strip">
-        <span>NO DIRECT TRANSFERS</span>
-        <span>NONCE-BOUND ATTESTATIONS</span>
-        <span>TIMEOUT REFUNDS</span>
-        <span>DETERMINISTIC HARD BLOCKS</span>
-      </section>
-
-      <section className="pillars">
-        <Pillar
-          k="01"
-          t="Mandatory route"
-          d="The asset rejects direct transfers. Every movement must enter Sluice escrow first."
-        />
-        <Pillar
-          k="02"
-          t="Projected, not guessed"
-          d="Concentration, holder share, liquidity, and request patterns are tested against the state that would exist after settlement."
-        />
-        <Pillar
-          k="03"
-          t="Chain has final say"
-          d="The gate verifies signer, nonce, expiry, and request state before it releases funds. Off-chain services never custody value."
-        />
-      </section>
-
-      <section className="band">
-        <div className="band-index">WHY / 01</div>
-        <h2>A multisig controls the signer.<br />Sluice controls the outcome.</h2>
-        <p>Keys can be compromised. Approvals can be reckless. Sluice checks each requested outcome against live pool constraints before value leaves escrow.</p>
-        <Link to="/firewall" className="text-link">Inspect the live gate <span>→</span></Link>
-      </section>
-    </div>
-  );
+  return <div className="splash"><div className="bg" aria-hidden="true" />
+    <section className="hero-splash">
+      <div className="hero-copy">
+        <div className="eyebrow"><span>Prediction market execution</span><span>DreamDEX · Somnia</span></div>
+        <h1>Trade the signal.<br /><em>Control the risk.</em></h1>
+        <p className="lede">Sluice Markets is an AI-assisted trading terminal for DreamDEX Event Contracts. Every proposed order passes deterministic exposure, liquidity, price, and expiry controls before it reaches your wallet.</p>
+        <div className="cta-row"><Link to="/markets" className="primary big">Open live markets <span>↗</span></Link><Link to="/portfolio" className="ghost big">View portfolio</Link></div>
+      </div>
+      <div className="hero-diagram" aria-label="Sluice Markets execution sequence">
+        <div className="diagram-head"><span>EVENT ORDER / SHANNON</span><b>POLICY-CONTROLLED</b></div>
+        <div className="diagram-route"><div className="diagram-node"><span>01</span><b>DISCOVER</b><small>Live DreamDEX book</small></div><div className="diagram-line"><i /></div><div className="diagram-node active"><span>02</span><b>CHECK</b><small>Risk limits + AI context</small></div><div className="diagram-line"><i /></div><div className="diagram-node"><span>03</span><b>EXECUTE</b><small>IOC order on Somnia</small></div></div>
+        <div className="diagram-result"><span>AI ADVISES</span><b>POLICY DECIDES</b></div>
+      </div>
+    </section>
+    <section className="proof-strip"><span>LIVE EVENT CONTRACTS</span><span>DETERMINISTIC HARD BLOCKS</span><span>WALLET-SIGNED IOC ORDERS</span><span>ON-CHAIN SETTLEMENT</span></section>
+    <section className="pillars"><Pillar k="01" t="See the real market" d="Discover active binary markets, probability, expiry, spread, depth, and liquidity directly through the DreamDEX SDK." /><Pillar k="02" t="Preview the outcome" d="Every order is scored for size, concentration, tail pricing, liquidity, slippage, and time-to-expiry before signing." /><Pillar k="03" t="Keep execution honest" d="AI explains context but cannot override hard limits. Approved orders execute on DreamDEX and settle through Event Contracts." /></section>
+    <section className="band"><div className="band-index">WHY / 01</div><h2>Agents can find opportunities.<br />Sluice decides what they may execute.</h2><p>Prediction-market automation becomes useful when users can inspect the thesis, bound the downside, and verify the resulting position on-chain.</p><Link to="/markets" className="text-link">Inspect live Event Contracts <span>→</span></Link></section>
+  </div>;
 }
 
-function Pillar({ k, t, d }: { k: string; t: string; d: string }) {
-  return (
-    <div className="pillar">
-      <div className="pillar-k">{k}</div>
-      <div className="pillar-t">{t}</div>
-      <div className="pillar-d">{d}</div>
-    </div>
-  );
-}
+function Pillar({ k, t, d }: { k: string; t: string; d: string }) { return <div className="pillar"><div className="pillar-k">{k}</div><div className="pillar-t">{t}</div><div className="pillar-d">{d}</div></div>; }

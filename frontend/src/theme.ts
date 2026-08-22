@@ -1,6 +1,6 @@
 export type Theme = "light" | "dark";
 
-const STORAGE_KEY = "sluice-theme";
+const STORAGE_KEY = "dreamdex-theme";
 
 export function getPreferredTheme(): Theme {
   try {

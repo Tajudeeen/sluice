@@ -119,6 +119,20 @@ describe("SluiceAsset", () => {
     await gate.connect(alice).requestTransfer(bob.address, ethers.parseUnits("100", 18));
     expect(await asset.balanceOf(await gate.getAddress())).to.equal(ethers.parseUnits("100", 18));
   });
+
+  it("limits the synthetic faucet to one claim per address and a global cap", async () => {
+    const { asset, alice, bob, carol, dave, eve, stranger } = await loadFixture(deployFixture);
+    await expect(asset.connect(alice).faucet()).to.emit(asset, "Transfer");
+    await expect(asset.connect(alice).faucet()).to.be.revertedWithCustomError(asset, "FaucetAlreadyClaimed");
+    await asset.connect(bob).faucet();
+    await asset.connect(carol).faucet();
+    await asset.connect(dave).faucet();
+    await asset.connect(eve).faucet();
+    await asset.connect(stranger).faucet();
+    expect(await asset.faucetMinted()).to.equal(ethers.parseUnits("300000", 18));
+    const extra = (await ethers.getSigners())[8];
+    await expect(asset.connect(extra).faucet()).to.be.revertedWithCustomError(asset, "FaucetCapReached");
+  });
 });
 
 describe("SluiceGate - request lifecycle", () => {

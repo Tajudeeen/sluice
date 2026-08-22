@@ -41,6 +41,7 @@ export interface RiskAssessment {
   deterministicScore: number;
   // Hard-block flags (deterministic safety boundary)
   hardBlock: boolean;
+  hardBlockReasonCode: number;
   hardBlockReasons: string[];
   // Detailed anomaly findings
   anomalyReasons: string[];

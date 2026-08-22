@@ -2,6 +2,22 @@
 
 **AI-native execution firewall for tokenized assets.**
 
+## Sluice Markets / DreamDEX
+
+The current hackathon build extends Sluice into a policy-controlled prediction
+market terminal for DreamDEX Event Contracts on Somnia Shannon. Open `/markets`
+to discover live binary markets, inspect the Event Contract order book, preview
+the deterministic risk decision, and execute an IOC order through the official
+`@somnia-chain/markets-sdk`. Open `/portfolio` to inspect indexed positions.
+
+The AI layer is advisory. Hard limits on position size, tail pricing, and time
+to expiry are enforced in the frontend before a wallet signature is requested;
+DreamDEX remains the execution and settlement authority.
+
+Hackathon configuration is controlled with `VITE_DREAMDEX_*` variables in
+`.env.example`. The default target is Shannon testnet (`50312`) and the live
+public indexer at `https://dev.smk.somnia.host/v1/graphql`.
+
 Sluice is an on-chain firewall for moving tokenized assets. Every transfer or
 redemption is **locked first, evaluated second, settled last**:
 
@@ -116,14 +132,14 @@ npm run frontend   # http://localhost:5173
 
 ### Demo math (why the attack actually breaches)
 - Base pool: 1,000,000 SLUSD across 6 holders, largest = **35%** (HHI ≈ 0.21, healthy).
-- Synthetic demo-attacker (Hardhat account #1, no real funds) is seeded **500,000 SLUSD**.
-- Concentration attack: the attacker transfers **450,000 SLUSD** into the largest holder
+- Synthetic demo-attacker (Hardhat account #1, no real funds) is seeded **900,000 SLUSD**.
+- Concentration attack: the attacker transfers **900,000 SLUSD** into the largest holder
   (a fixed, predefined target: never an arbitrary address). After: that holder owns
-  800k of 1.5M = **53%** → deterministic hard-block (`LARGEST_HOLDER_LIMIT`, ≥50%).
+  1,250k of 1.9M = **65.8%** → deterministic hard-block (`LARGEST_HOLDER_LIMIT`, ≥50%).
 - NORMAL flow: a small transfer to a fresh address keeps the pool healthy → **APPROVE**.
 
 Verified run (see `docs/PROOF-local-e2e.md`): req #1 APPROVE (score 13), req #2 BLOCK
-(hard block, projected top holder 51.6% ≥ 50%). Settlement/refund tx hashes are in the proof file.
+(hard block, projected top holder 65.8% ≥ 50%). Settlement/refund tx hashes are in the proof file.
 
 ## Tests
 
@@ -132,20 +148,20 @@ npm test            # Hardhat contract tests (24): firewall, gating, reentrancy,
 npm run test:agent  # Vitest agent tests (16): HHI/liquidity/anomaly math + decision bands
 ```
 
-## Deploy to BOT Chain (chainId 677)
+## Deploy to Somnia Shannon (chainId 50312)
 
 ```bash
-# set BOT_RPC_URL / DEPLOYER_PRIVATE_KEY / ATTESTER_PRIVATE_KEY in .env
-# IMPORTANT: the deployer key MUST hold BOT for gas: the script aborts cleanly
+# set SOMNIA_RPC_URL / DEPLOYER_PRIVATE_KEY / ATTESTER_PRIVATE_KEY in .env
+# IMPORTANT: the deployer key MUST hold STT for gas: the script aborts cleanly
 # if its balance is 0 (it will NOT hang on an unmineable tx).
-npm run deploy:bot
-npm run verify:bot
+npm run deploy:somnia
+npm run verify:somnia
 ```
 
 ## Live demo mirror (no mainnet gas needed)
 
 The build link you hand reviewers should show a **working firewall**, not an empty
-shell. Before the BOT mainnet token arrives, deploy the exact same contracts to
+shell. If you need a separate legacy proof, deploy the exact same contracts to
 **Sepolia** (free test ETH) and bake those addresses into the frontend build:
 
 ```bash
@@ -163,8 +179,8 @@ bash scripts/publish-pages.sh
 
 The hosted build now shows the live gate + asset, the attester agent settles
 requests in real time, and the concentration-attack simulator runs on-chain.
-When the BOT token arrives, repeat with `npm run deploy:bot` and rebuild — the
-only difference is the network.
+The hackathon-facing product uses DreamDEX Event Contracts on Somnia Shannon;
+the legacy escrow deployment remains isolated from the market terminal.
 
 ## Hosted build
 
@@ -174,22 +190,19 @@ build without `VITE_GATE_ADDRESS`/`VITE_ASSET_ADDRESS` shows an intentional
 mainnet-gas token) instead of a broken state. Publish with `scripts/publish-pages.sh`
 to a `gh-pages` branch and enable GitHub Pages (root) in repo Settings.
 
-## Live BOT Chain deployment
+## Hackathon build
 
-The current public build is wired to BOT Chain (chain ID 677):
+The current product is designed for DreamDEX Event Contracts on Somnia Shannon:
 
 - Frontend: https://tajudeeen.github.io/sluice/
-- Hosted attester Worker: https://sluice-agent.tajudeenowoeteniyan.workers.dev/health
-- Registry: `0x5d3E0B5c981cfC3127d165DB3E28B1F608eBCc3E`
-- SluiceAsset: `0x8CC42b34692B5555865e92ebD9eA3F328868783a`
-- SluiceGate: `0x94037b2D299343b3D4FA02b2432512d263FB537C`
-- Authorized attester: `0x2818DA030a19Ac0e84e9bA64Fef1AF3941668871`
+- Chain: `50312` (Somnia Shannon)
+- RPC: `https://dream-rpc.somnia.network`
+- Explorer: `https://shannon-explorer.somnia.network`
+- DreamDEX indexer: `https://dev.smk.somnia.host/v1/graphql`
 
-Judge flow: open `/firewall`, connect a wallet on BOT Chain, claim synthetic
-SLUSD, submit a small transfer for an APPROVE, then run the fixed-target
-concentration test for a deterministic BLOCK. The off-chain agent must be online
-for settlement; its `/health` endpoint can be surfaced through
-`VITE_AGENT_HEALTH_URL`.
+Demo flow: open `/markets`, connect a wallet on Somnia Shannon, select a live
+Event Contract, inspect the order book, preview the deterministic policy result,
+and execute a small IOC order. Open `/portfolio` to inspect indexed positions.
 
 ### Host the agent
 
@@ -199,17 +212,18 @@ The root `Dockerfile` packages the agent for an always-on container host. Set
 `ANTHROPIC_API_KEY` remains an optional fallback. Expose port `8787`; the health check is `GET /health`. Never put
 the attester or AI key in the frontend or repository.
 
-For Render, `render.yaml` is included. Create a Blueprint from this repository,
+For Render, `render.yaml` is included for the optional legacy attester service.
+Create a Blueprint from this repository,
 enter `ATTESTER_PRIVATE_KEY` and `GROQ_API_KEY` as secret values, then set
 `VITE_AGENT_HEALTH_URL` to the resulting Render service URL and rebuild the
-frontend. `npm run verify:bot` uses the public deployment metadata in
-`docs/live-deployment.json`; BOTScan accepts the default Blockscout placeholder
-token, while `BOT_EXPLORER_API_KEY` remains available as an override.
+frontend. The DreamDEX market terminal does not require the optional legacy
+attester service.
 
 ### Cloudflare Worker (free-plan option)
 
 The repository also includes a Cloudflare-compatible Worker in `worker/`.
-It exposes `/health`, `/process/latest`, and a one-minute scheduled recovery trigger.
+It exposes public `/health` and one-shot `/demo/attack` routes, protected manual
+`/process/*` routes, and a one-minute scheduled settlement trigger.
 Follow [`docs/cloudflare-worker.md`](docs/cloudflare-worker.md) for the exact setup.
 Cloudflare secrets must be named `GROQ_API_KEY` and `ATTESTER_PRIVATE_KEY` exactly;
 they are never exposed to the frontend.

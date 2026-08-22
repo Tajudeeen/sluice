@@ -1,7 +1,7 @@
 // Sluice deployment script.
 //
 //   npx hardhat run scripts/deploy.ts --network localhost   # local node
-//   npx hardhat run scripts/deploy.ts --network bot         # BOT Chain mainnet
+//   npx hardhat run scripts/deploy.ts --network somnia      # Somnia Shannon testnet
 //
 // Deploys the three contracts (AttesterRegistry -> SluiceAsset -> SluiceGate),
 // wires the gate into the asset, and seeds a demo holder distribution so the
@@ -54,7 +54,7 @@ export let DEMO_ATTACK_TARGET = "0x00000000000000000000000000000000deadbeef";
 // consolidation the largest holder crosses 50% (see README "Demo math"):
 // holder A starts at 350k/1M (35%); attacker (500k) sends 450k to A => A = 800k
 // of 1.5M = 53% => deterministic hard block (largest holder >= 50%).
-export const ATTACK_AMOUNT = ethers.parseUnits("450000", 18);
+export const ATTACK_AMOUNT = ethers.parseUnits("900000", 18);
 
 async function main() {
   const hre: any = await import("hardhat");
@@ -67,7 +67,7 @@ async function main() {
   const minGas = ethers.parseEther("0.01");
   if (bal < minGas) {
     throw new Error(
-      `Deployer ${deployer.address} has ${ethers.formatEther(bal)} BOT: insufficient for gas on '${networkName}'. ` +
+      `Deployer ${deployer.address} has ${ethers.formatEther(bal)} STT: insufficient for gas on '${networkName}'. ` +
         `Fund it and retry. (Aborting rather than hanging on an unmineable tx.)`
     );
   }
@@ -157,7 +157,7 @@ async function main() {
   // concentration-attack simulator can originate a REAL on-chain request that
   // breaches the HHI hard-block. Synthetic SLUSD only: no real value.
   // 500k of the 1.5M pool; the attack sends 450k into holder A, pushing A past 50%.
-  const attackSeed = ethers.parseUnits("500000", 18);
+  const attackSeed = ethers.parseUnits("900000", 18);
   {
     const tx = await asset.mint(DEMO_ATTACKER_ADDRESS, attackSeed);
     await tx.wait();
@@ -195,8 +195,7 @@ async function main() {
   console.log(`VITE_ATTESTER_ADDRESS=${attesterAddr}`);
   console.log(`VITE_CHAIN_ID=${hre.network.config.chainId}`);
   if (hre.network.name === "hardhat" || hre.network.name === "localhost") {
-    console.log(`VITE_DEMO_ATTACKER_KEY=${DEMO_ATTACKER_KEY}`);
-    console.log(`VITE_DEMO_ATTACK_TARGET=${DEMO_ATTACK_TARGET}`);
+    console.log(`VITE_DEMO_ATTACKER_ADDRESS=${DEMO_ATTACKER_ADDRESS}`);
   }
   console.log(`--- .env (agent + simulator) ---`);
   console.log(`ATTESTER_PRIVATE_KEY=${process.env.ATTESTER_PRIVATE_KEY || "(set this)"}`);
@@ -204,22 +203,21 @@ async function main() {
   console.log(`SLUICE_ASSET_ADDRESS=${await asset.getAddress()}`);
   if (hre.network.name === "hardhat" || hre.network.name === "localhost") {
     console.log(`# SYNTHETIC demo-attacker key (Hardhat test account #1) for the concentration-attack simulator only.`);
-    console.log(`SLUICE_DEMO_ATTACKER_KEY=${DEMO_ATTACKER_KEY}`);
-    console.log(`SLUICE_DEMO_ATTACK_TARGET=${DEMO_ATTACK_TARGET}`);
+    console.log(`DEMO_ATTACKER_PRIVATE_KEY=${DEMO_ATTACKER_KEY}`);
   }
 
   // Emit a ready-to-use frontend build env (.env.frontend) so the hosted build
   // can be produced in one step: `cp .env.frontend frontend/.env && npm run frontend:build`.
   // On testnets/mainnet we also wire the demo-attacker key so the concentration
   // attack simulator runs live on the hosted link.
-  const chainName = hre.network.name === "bot" ? "BOT Chain" : hre.network.name === "sepolia" ? "Sepolia" : "Local";
-  const networkTag = hre.network.name === "bot" ? "BOT Chain" : hre.network.name === "sepolia" ? "Sepolia" : "Local";
-  const explorer = hre.network.name === "bot" ? "https://scan.botchain.ai/" : hre.network.name === "sepolia" ? "https://sepolia.etherscan.io/" : "";
-  const rpc = hre.network.name === "bot" ? "https://rpc.botchain.ai/" : hre.network.name === "sepolia" ? "https://rpc.sepolia.org" : "http://127.0.0.1:8545";
+  const chainName = hre.network.name === "somnia" ? "Somnia Shannon" : hre.network.name === "sepolia" ? "Sepolia" : "Local";
+  const networkTag = chainName;
+  const explorer = hre.network.name === "somnia" ? "https://shannon-explorer.somnia.network" : hre.network.name === "sepolia" ? "https://sepolia.etherscan.io/" : "";
+  const rpc = hre.network.name === "somnia" ? "https://dream-rpc.somnia.network" : hre.network.name === "sepolia" ? "https://rpc.sepolia.org" : "http://127.0.0.1:8545";
   const feLines = [
     `# Frontend build env for Sluice (network: ${hre.network.name})`,
     `# Copy to frontend/.env then: npm run frontend:build -- --base=/sluice/`,
-    `VITE_BOT_RPC_URL=${rpc}`,
+    `VITE_RPC_URL=${rpc}`,
     `VITE_CHAIN_ID=${hre.network.config.chainId}`,
     `VITE_CHAIN_NAME=${chainName}`,
     `VITE_NETWORK_TAG=${networkTag}`,
@@ -229,8 +227,7 @@ async function main() {
     `VITE_ATTESTER_ADDRESS=${attesterAddr}`,
   ];
   if (hre.network.name !== "hardhat" && hre.network.name !== "localhost") {
-    feLines.push(`VITE_DEMO_ATTACKER_KEY=${DEMO_ATTACKER_KEY}`);
-    feLines.push(`VITE_DEMO_ATTACK_TARGET=${DEMO_ATTACK_TARGET}`);
+    feLines.push(`VITE_DEMO_ATTACKER_ADDRESS=${DEMO_ATTACKER_ADDRESS}`);
   }
   fs.writeFileSync(path.join("artifacts", "deployment.frontend.env"), feLines.join("\n") + "\n");
   console.log(`\nWrote frontend build env to artifacts/deployment.frontend.env`);

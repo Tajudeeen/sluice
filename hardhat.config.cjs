@@ -8,7 +8,7 @@ require("@nomicfoundation/hardhat-ethers");
 require("@nomicfoundation/hardhat-chai-matchers");
 require("@nomicfoundation/hardhat-verify");
 
-const botRpc = process.env.BOT_RPC_URL || "https://rpc.botchain.ai/";
+const somniaRpc = process.env.SOMNIA_RPC_URL || "https://dream-rpc.somnia.network";
 // Keys MUST come from the environment. No hardcoded fallbacks (avoids shipping
 // bogus/placeholder keys and makes missing-config failures explicit).
 const deployerKey = process.env.DEPLOYER_PRIVATE_KEY;
@@ -31,20 +31,20 @@ module.exports = {
       url: "http://127.0.0.1:8545",
       chainId: 31337,
     },
-    bot: {
-      url: botRpc,
-      chainId: 677,
-      accounts: [deployerKey, attesterKey],
+    somnia: {
+      url: somniaRpc,
+      chainId: 50312,
+      accounts: [deployerKey, attesterKey].filter(Boolean),
       gasPrice: 60_000_000_000,
       timeout: 120_000,
     },
     // Public testnet for a LIVE demo mirror (no mainnet gas needed). Free Sepolia
     // ETH from a faucet funds the deployer. Use this to host a working firewall
-    // behind the build link while waiting on the BOT mainnet token.
+    // behind a separate legacy proof build when needed.
     sepolia: {
       url: process.env.SEPOLIA_RPC_URL || "https://rpc.sepolia.org",
       chainId: 11155111,
-      accounts: [deployerKey, attesterKey],
+      accounts: [deployerKey, attesterKey].filter(Boolean),
       timeout: 120_000,
     },
   },
@@ -52,16 +52,15 @@ module.exports = {
     apiType: "etherscan",
     enabled: true,
     apiKey: {
-      // BOTScan is Blockscout-compatible and accepts a non-secret placeholder.
-      bot: process.env.BOT_EXPLORER_API_KEY || "blockscout",
+      somnia: process.env.SOMNIA_EXPLORER_API_KEY || "blockscout",
     },
     customChains: [
       {
-        network: "bot",
-        chainId: 677,
+        network: "somnia",
+        chainId: 50312,
         urls: {
-          apiURL: process.env.BOT_EXPLORER_API_URL || "https://scan.botchain.ai/api",
-          browserURL: process.env.BOT_EXPLORER_URL || "https://scan.botchain.ai/",
+          apiURL: process.env.SOMNIA_EXPLORER_API_URL || "https://shannon-explorer.somnia.network/api",
+          browserURL: process.env.SOMNIA_EXPLORER_URL || "https://shannon-explorer.somnia.network",
         },
       },
     ],

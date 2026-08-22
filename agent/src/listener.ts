@@ -256,7 +256,7 @@ export class SluiceAgent {
         { name: "expiry", type: "uint32" },
       ],
     };
-    const reasonCode = decision === "BLOCK" ? (risk.hardBlock ? REASON.PROJECTED_CONCENTRATION : REASON.AI_REVIEW_BLOCK) : REASON.SAFE;
+    const reasonCode = decision === "BLOCK" ? (risk.hardBlock ? risk.hardBlockReasonCode : REASON.AI_REVIEW_BLOCK) : REASON.SAFE;
     const value = {
       requestId,
       decision: decision === "APPROVE" ? DECISION.APPROVE : DECISION.BLOCK,

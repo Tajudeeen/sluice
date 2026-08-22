@@ -7,7 +7,7 @@ services:
     autoDeploy: true
     envVars:
       - key: SLUICE_RPC_URL
-        value: https://rpc.botchain.ai/
+        value: https://dream-rpc.somnia.network
       - key: SLUICE_GATE_ADDRESS
         value: 0x94037b2D299343b3D4FA02b2432512d263FB537C
       - key: SLUICE_ASSET_ADDRESS

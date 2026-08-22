@@ -40,27 +40,32 @@ export function assessRisk(snap: PoolSnapshot, tx: ProposedTx, history: { amount
   // ---- HARD BLOCKS (deterministic safety boundary; LLM CANNOT override) ----
   const hardBlockReasons: string[] = [];
   let hardBlock = false;
+  let hardBlockReasonCode: number = REASON.SAFE;
 
   if (projHhi >= cfg.concentration.hhiHardBlock) {
     hardBlock = true;
+    hardBlockReasonCode = REASON.PROJECTED_CONCENTRATION;
     hardBlockReasons.push(
       `PROJECTED_HHI_LIMIT: projected HHI ${projHhi.toFixed(3)} >= ${cfg.concentration.hhiHardBlock}`
     );
   }
   if (projLargest >= cfg.concentration.largestHolderHardBlock) {
     hardBlock = true;
+    if (hardBlockReasonCode === REASON.SAFE) hardBlockReasonCode = REASON.PROJECTED_CONCENTRATION;
     hardBlockReasons.push(
       `LARGEST_HOLDER_LIMIT: projected top holder ${projLargest.toFixed(1)}% >= ${cfg.concentration.largestHolderHardBlock}%`
     );
   }
   if (tx.type === "REDEMPTION" && liquidityHardBlock(liq.ratio, cfg.liquidity.minLiquidityRatio)) {
     hardBlock = true;
+    if (hardBlockReasonCode === REASON.SAFE) hardBlockReasonCode = REASON.POST_REDEMPTION_LIQUIDITY;
     hardBlockReasons.push(
       `POST_REDEMPTION_LIQUIDITY: remaining ratio ${liq.ratio.toFixed(3)} < ${cfg.liquidity.minLiquidityRatio}`
     );
   }
   if (anomaly.score >= cfg.anomaly.anomalyHardBlock) {
     hardBlock = true;
+    if (hardBlockReasonCode === REASON.SAFE) hardBlockReasonCode = REASON.ANOMALY_CRITICAL;
     hardBlockReasons.push(`ANOMALY_LIMIT: anomaly score ${anomaly.score} >= ${cfg.anomaly.anomalyHardBlock}`);
   }
 
@@ -82,6 +87,7 @@ export function assessRisk(snap: PoolSnapshot, tx: ProposedTx, history: { amount
     anomalyScore: anomaly.score,
     deterministicScore: Math.round(deterministic),
     hardBlock,
+    hardBlockReasonCode,
     hardBlockReasons,
     anomalyReasons: anomaly.reasons,
   };
@@ -108,7 +114,7 @@ export async function decide(
       classification: "INSUFFICIENT_DATA",
       confidence: 0,
       reason: "",
-    }, REASON.PROJECTED_CONCENTRATION, false, risk.hardBlockReasons[0] ?? "DETERMINISTIC_HARD_BLOCK");
+    }, risk.hardBlockReasonCode, false, risk.hardBlockReasons[0] ?? "DETERMINISTIC_HARD_BLOCK");
   }
 
   // 2) Low risk -> APPROVE (no AI needed).

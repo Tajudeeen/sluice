@@ -32,14 +32,13 @@ const GATE = DEP.gate;
 const ASSET = DEP.asset;
 const DEPLOYER_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 const ATTACKER_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
-const ATTACK_TARGET = process.env.SLUICE_DEMO_ATTACK_TARGET || "0x00000000000000000000000000000000deadbeef";
 
 const GATE_ABI = [
   "function requestTransfer(address to, uint256 amount) returns (uint256 id)",
   "function getRequest(uint256 id) view returns (tuple(uint256 id, address requester, address recipient, uint256 amount, uint8 requestType, uint256 createdAt, uint8 status))",
   "function requestCounter() view returns (uint256)",
 ];
-const ASSET_ABI = ["function approve(address spender, uint256 amount) returns (bool)"];
+const ASSET_ABI = ["function approve(address spender, uint256 amount) returns (bool)", "function holders() view returns (address[])", "function balanceOf(address) view returns (uint256)"];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -50,6 +49,10 @@ async function run() {
   const gateD = new ethers.Contract(GATE, GATE_ABI, deployer);
   const gateA = new ethers.Contract(GATE, GATE_ABI, attacker);
   const assetA = new ethers.Contract(ASSET, ASSET_ABI, attacker);
+  const holderAddrs = await assetA.holders();
+  const holderBalances = await Promise.all(holderAddrs.map((a) => assetA.balanceOf(a)));
+  const largestIndex = holderBalances.reduce((best, balance, i) => balance > holderBalances[best] ? i : best, 0);
+  const attackTarget = process.env.SLUICE_DEMO_ATTACK_TARGET || holderAddrs[largestIndex];
 
   // Deployer (#0) is the asset owner but holds no SLUSD in the seed distribution.
   // Claim synthetic SLUSD via the owner-gated faucet so the NORMAL flow is real.
@@ -73,10 +76,10 @@ async function run() {
 
   // ---- FLOW 2: ATTACK concentration (550k transfer, breaches HHI) ----
   console.log("\n=== FLOW 2: ATTACK transfer (attacker -> fixed target, 550,000 SLUSD) ===");
-  const atkAmt = ethers.parseUnits("450000", 18);
+  const atkAmt = ethers.parseUnits("900000", 18);
   await (await assetA.approve(GATE, atkAmt)).wait();
   await sleep(800);
-  const tx2 = await gateA.requestTransfer(ATTACK_TARGET, atkAmt);
+  const tx2 = await gateA.requestTransfer(attackTarget, atkAmt);
   const r2 = await tx2.wait();
   console.log(`  attack submitted tx ${r2.hash}`);
   await sleep(7000); // let agent poll + BLOCK

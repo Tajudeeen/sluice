@@ -1,7 +1,7 @@
 import { useAccount, useConnect, useDisconnect, useChainId } from "wagmi";
 import { injected } from "wagmi/connectors";
-import { CHAIN_ID, shortAddr } from "../sluice";
-import { BOT_CHAIN_PARAMS } from "../wagmi";
+import { shortAddr } from "../sluice";
+import { DREAMDEX_CHAIN_ID, DREAMDEX_EXPLORER_URL, DREAMDEX_RPC_URL } from "../dreamdex";
 
 // Reusable connect/disconnect control. Used in the site nav on every page.
 export default function WalletButton() {
@@ -10,21 +10,21 @@ export default function WalletButton() {
   const { disconnect } = useDisconnect();
   const walletChainId = useChainId();
 
-  async function ensureBotChain() {
+  async function ensureDreamdexChain() {
     const provider = (window as any).ethereum;
     if (!provider) return;
     try {
-      await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: BOT_CHAIN_PARAMS.chainId }] });
+      await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: `0x${DREAMDEX_CHAIN_ID.toString(16)}` }] });
     } catch (err: any) {
       if (err?.code !== 4902) throw err;
-      await provider.request({ method: "wallet_addEthereumChain", params: [BOT_CHAIN_PARAMS] });
+      await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: `0x${DREAMDEX_CHAIN_ID.toString(16)}`, chainName: "Somnia Shannon Testnet", nativeCurrency: { name: "STT", symbol: "STT", decimals: 18 }, rpcUrls: [DREAMDEX_RPC_URL], blockExplorerUrls: [DREAMDEX_EXPLORER_URL] }] });
     }
   }
 
   async function connectWallet() {
     try {
       await connectAsync({ connector: injected() });
-      await ensureBotChain();
+      await ensureDreamdexChain();
     } catch (err) {
       console.error("Wallet connection/network switch failed", err);
     }
@@ -32,7 +32,7 @@ export default function WalletButton() {
 
   async function switchWalletNetwork() {
     try {
-      await ensureBotChain();
+      await ensureDreamdexChain();
     } catch (err) {
       console.error("Wallet network switch failed", err);
     }
@@ -42,7 +42,7 @@ export default function WalletButton() {
     return (
       <div className="wallet">
         <span className="addr">{shortAddr(address!)}</span>
-        {walletChainId !== CHAIN_ID && <button className="ghost network-warning" onClick={switchWalletNetwork}>Switch to {CHAIN_ID}</button>}
+        {walletChainId !== DREAMDEX_CHAIN_ID && <button className="ghost network-warning" onClick={switchWalletNetwork}>Switch to Shannon</button>}
         <button className="ghost" onClick={() => disconnect()}>
           Disconnect
         </button>

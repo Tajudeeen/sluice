@@ -9,4 +9,4 @@ console.log(`rich ${rich.address} bal ${ethers.formatEther(bal)}`);
 const tx = await rich.sendTransaction({ to: attester, value: amt });
 await tx.wait();
 const nb = await provider.getBalance(attester);
-console.log(`funded attester ${attester} -> ${ethers.formatEther(nb)} BOT (tx ${tx.hash})`);
+console.log(`funded attester ${attester} -> ${ethers.formatEther(nb)} local test token (tx ${tx.hash})`);
