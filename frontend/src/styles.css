@@ -104,6 +104,38 @@ button { color: inherit; }
 :root[data-theme="dark"] .ba-col.safe { background: #173326; }
 :root[data-theme="dark"] .ba-col.breach { background: #45201b; }
 :root[data-theme="dark"] .deploy-info.demo-mode { background: #2b2818; }
+:root[data-theme="dark"] .dreamdex-app .market-row:hover,
+:root[data-theme="dark"] .dreamdex-app .market-row.selected { background: #2c1d4c; color: #fff; }
+:root[data-theme="dark"] .dreamdex-app .market-row small { color: #c7bddf; }
+:root[data-theme="dark"] .probability { background: #211735; }
+:root[data-theme="dark"] .segmented button { background: #151020; color: #f8f4ff; }
+:root[data-theme="dark"] .segmented button.active { background: #a77bff; color: #10091e; }
+:root[data-theme="dark"] .trade-ticket input { border-color: #78649e; background: #120d20; color: #fff; }
+:root[data-theme="dark"] .trade-ticket input:hover,
+:root[data-theme="dark"] .trade-ticket input:focus { border-color: #c5a9ff; }
+:root[data-theme="dark"] .execution-estimate,
+:root[data-theme="dark"] .market-metrics,
+:root[data-theme="dark"] .probability-chart { background-color: #151020; }
+:root[data-theme="dark"] .decision { border-color: #79669e; }
+:root[data-theme="dark"] .decision.allow { background: #12362f; }
+:root[data-theme="dark"] .decision.allow strong { color: #72ead8; }
+:root[data-theme="dark"] .decision.block { background: #431c29; }
+:root[data-theme="dark"] .decision.block strong { color: #ff9caf; }
+:root[data-theme="dark"] .decision span,
+:root[data-theme="dark"] .decision small { color: #ddd4f2; }
+:root[data-theme="dark"] .decision small { border-top-color: rgba(255, 255, 255, .13); }
+:root[data-theme="dark"] .decision small b { color: #fff; }
+:root[data-theme="dark"] .portfolio-tabs button { background: #151020; color: #f8f4ff; }
+:root[data-theme="dark"] .portfolio-tabs button.active { background: #a77bff; color: #10091e; }
+:root[data-theme="dark"] .portfolio-tabs i { background: #332653; color: #fff; }
+:root[data-theme="dark"] .portfolio-tabs button.active i { background: #10091e; color: #fff; }
+:root[data-theme="dark"] .portfolio-empty { background: rgba(21, 16, 32, .7); }
+:root[data-theme="dark"] .chart-empty { background: #151020; color: #c7bddf; }
+:root[data-theme="dark"] .trail-item small,
+:root[data-theme="dark"] .trail-item time,
+:root[data-theme="dark"] .activity-row small,
+:root[data-theme="dark"] .activity-row em { color: #c7bddf; }
+:root[data-theme="dark"] .ghost:hover { background: #a77bff; color: #10091e; }
 
 /* Navigation */
 header.hero {
