@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sluice - Execution Firewall for Tokenized Assets</title>
+    <meta
+      name="description"
+      content="Sluice locks token movements in escrow, checks projected pool state against policy, and settles safe transfers on-chain."
+    />
+    <script>
+      try {
+        const savedTheme = localStorage.getItem("sluice-theme");
+        const theme = savedTheme === "light" || savedTheme === "dark"
+          ? savedTheme
+          : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      } catch {}
+    </script>
+    <script type="module" crossorigin src="/sluice/assets/index-DMi21U2w.js"></script>
+    <link rel="modulepreload" crossorigin href="/sluice/assets/wallet-DMzBLeMc.js">
+    <link rel="modulepreload" crossorigin href="/sluice/assets/ethers-1_yFAdNo.js">
+    <link rel="stylesheet" crossorigin href="/sluice/assets/index-8sd4HPgi.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
