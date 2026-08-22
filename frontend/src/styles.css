@@ -136,6 +136,7 @@ button { color: inherit; }
 :root[data-theme="dark"] .activity-row small,
 :root[data-theme="dark"] .activity-row em { color: #c7bddf; }
 :root[data-theme="dark"] .ghost:hover { background: #a77bff; color: #10091e; }
+:root[data-theme="dark"] .category-chips span { border-color: #705a98; background: #211735; color: #f8f4ff; }
 
 /* Navigation */
 header.hero {
@@ -287,6 +288,8 @@ button:disabled, .primary:disabled, .ghost:disabled { opacity: .45; cursor: not-
 }
 .hero-splash h1 em { color: var(--signal); font-family: Georgia, serif; font-weight: 400; }
 .lede { max-width: 660px; margin: 34px 0 0; color: var(--ink-soft); font-size: 18px; line-height: 1.55; }
+.category-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.category-chips span { padding: 8px 10px; border: 1px solid var(--line-strong); background: var(--paper-deep); color: var(--ink); font: 700 9px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; }
 .cta-row { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 36px; }
 
 .hero-diagram {
