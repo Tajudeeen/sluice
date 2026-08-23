@@ -4,6 +4,7 @@ import type { Address, Hex } from "viem";
 
 export const DREAMDEX_INDEXER_URL = (import.meta.env.VITE_DREAMDEX_INDEXER_URL as string) || "https://dev.smk.somnia.host/v1/graphql";
 export const DREAMDEX_RPC_URL = (import.meta.env.VITE_DREAMDEX_RPC_URL as string) || "https://dream-rpc.somnia.network";
+export const DREAMDEX_RPC_URLS = ["https://api.infra.testnet.somnia.network", DREAMDEX_RPC_URL] as const;
 export const DREAMDEX_WS_URL = (import.meta.env.VITE_DREAMDEX_WS_URL as string) || "wss://dream-rpc.somnia.network/ws";
 export const DREAMDEX_CHAIN_ID = 50312;
 export const DREAMDEX_EXPLORER_URL = (import.meta.env.VITE_DREAMDEX_EXPLORER_URL as string) || "https://shannon-explorer.somnia.network";

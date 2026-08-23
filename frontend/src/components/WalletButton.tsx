@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain, useWalletClient } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { shortAddr } from "../sluice";
-import { DREAMDEX_CHAIN_ID, DREAMDEX_EXPLORER_URL, DREAMDEX_RPC_URL, dreamdexExchange } from "../dreamdex";
+import { DREAMDEX_CHAIN_ID, DREAMDEX_EXPLORER_URL, DREAMDEX_RPC_URLS, dreamdexExchange } from "../dreamdex";
 
 // Reusable connect/disconnect control. Used in the site nav on every page.
 export default function WalletButton() {
@@ -13,15 +13,40 @@ export default function WalletButton() {
   const { data: walletClient } = useWalletClient();
   const walletChainId = useChainId();
   const [faucetState, setFaucetState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [rpcState, setRpcState] = useState<"idle" | "repairing" | "done" | "error">("idle");
+  const [walletError, setWalletError] = useState("");
+  const shannonParams = {
+    chainId: `0x${DREAMDEX_CHAIN_ID.toString(16)}`,
+    chainName: "Somnia Shannon Testnet",
+    nativeCurrency: { name: "STT", symbol: "STT", decimals: 18 },
+    rpcUrls: [...DREAMDEX_RPC_URLS],
+    blockExplorerUrls: [DREAMDEX_EXPLORER_URL],
+  };
 
   async function ensureDreamdexChain() {
     const provider = (window as any).ethereum;
     if (!provider) return;
     try {
-      await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: `0x${DREAMDEX_CHAIN_ID.toString(16)}` }] });
+      await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: shannonParams.chainId }] });
     } catch (err: any) {
       if (err?.code !== 4902) throw err;
-      await provider.request({ method: "wallet_addEthereumChain", params: [{ chainId: `0x${DREAMDEX_CHAIN_ID.toString(16)}`, chainName: "Somnia Shannon Testnet", nativeCurrency: { name: "STT", symbol: "STT", decimals: 18 }, rpcUrls: [DREAMDEX_RPC_URL], blockExplorerUrls: [DREAMDEX_EXPLORER_URL] }] });
+      await provider.request({ method: "wallet_addEthereumChain", params: [shannonParams] });
+    }
+  }
+
+  async function repairShannonRpc() {
+    const provider = (window as any).ethereum;
+    if (!provider) return;
+    setRpcState("repairing");
+    setWalletError("");
+    try {
+      await provider.request({ method: "wallet_addEthereumChain", params: [shannonParams] });
+      await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: shannonParams.chainId }] });
+      setRpcState("done");
+    } catch (err) {
+      setRpcState("error");
+      setWalletError("Your wallet may keep the existing RouteMe RPC. Edit Shannon's network settings manually and use https://api.infra.testnet.somnia.network.");
+      console.error("Shannon RPC repair failed", err);
     }
   }
 
@@ -57,6 +82,7 @@ export default function WalletButton() {
   async function claimTestCollateral() {
     if (!walletClient || walletChainId !== DREAMDEX_CHAIN_ID) return;
     setFaucetState("loading");
+    setWalletError("");
     try {
       dreamdexExchange.setSigner({ walletClient });
       const receipt = await dreamdexExchange.trader.faucet({ amount: 1_000n * 1_000_000n });
@@ -64,6 +90,7 @@ export default function WalletButton() {
       window.dispatchEvent(new CustomEvent("sluice:collateral-claimed", { detail: { hash: receipt.hash } }));
     } catch (err) {
       setFaucetState("error");
+      setWalletError("Wallet RPC is rate-limited. Replace Shannon's RouteMe RPC with the official Somnia RPC, then retry.");
       console.error("tUSDC faucet request failed", err);
     }
   }
@@ -80,12 +107,16 @@ export default function WalletButton() {
           <option value={1}>Ethereum</option>
         </select>
         {isWrongNetwork && <button className="ghost network-warning" onClick={switchWalletNetwork}>Switch to Shannon</button>}
+        {!isWrongNetwork && <button className="ghost rpc-repair" onClick={repairShannonRpc} disabled={rpcState === "repairing"} title="Replace a rate-limited Shannon RPC with Somnia's public endpoints">
+          {rpcState === "repairing" ? "Repairing RPC..." : rpcState === "done" ? "Shannon RPC ready" : rpcState === "error" ? "Retry RPC repair" : "Repair Shannon RPC"}
+        </button>}
         {!isWrongNetwork && <button className="ghost faucet-claim" onClick={claimTestCollateral} disabled={!walletClient || faucetState === "loading"} title="Mint test collateral from the Shannon tUSDC faucet">
           {faucetState === "loading" ? "Claiming..." : faucetState === "done" ? "1,000 tUSDC claimed" : faucetState === "error" ? "Retry tUSDC claim" : "Claim 1,000 tUSDC"}
         </button>}
         <button className="ghost" onClick={() => disconnect()}>
           Disconnect
         </button>
+        {walletError && <span className="wallet-error" role="status">{walletError}</span>}
       </div>
     );
   }

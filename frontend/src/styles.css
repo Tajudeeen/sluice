@@ -217,7 +217,9 @@ header.hero {
 .addr { color: var(--ink); font: 700 11px/1 var(--mono); }
 .network-select { min-height: 38px; max-width: 148px; padding: 8px 28px 8px 10px; border: 1px solid var(--line-strong); border-radius: 0; background: var(--paper); color: var(--ink); font: 700 9px/1 var(--mono); letter-spacing: .03em; text-transform: uppercase; }
 .network-warning { border-color: var(--warn); color: var(--warn); }
+.rpc-repair { border-color: var(--warn); color: var(--warn); }
 .faucet-claim { border-color: var(--signal-dark); color: var(--signal-dark); }
+.wallet-error { max-width: 260px; color: var(--bad); font: 600 9px/1.35 var(--mono); }
 .nav-actions { justify-self: end; display: flex; align-items: center; gap: 10px; }
 .theme-toggle { min-width: 86px; min-height: 38px; padding: 9px 11px; border-color: var(--line-strong); background: transparent; }
 .theme-toggle:hover { background: var(--acid); color: #171814; }
