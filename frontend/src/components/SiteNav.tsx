@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { NavLink, Link } from "react-router-dom";
-import { DREAMDEX_CHAIN_ID } from "../dreamdex";
 import ThemeToggle from "./ThemeToggle";
 import WalletButton from "./WalletButton";
 
@@ -26,7 +25,6 @@ export default function SiteNav() {
       <Link to="/" className="brand">
         <span className="logo-mark" aria-hidden="true"><i /><i /><i /></span>
         <span className="logo">SLUICE MARKETS</span>
-        <span className="net"><span className="dot" />SOMNIA SHANNON<span className="net-id">{DREAMDEX_CHAIN_ID}</span></span>
       </Link>
       <nav className="nav" aria-label="Primary navigation">
         <NavLink onClick={closeMenu} to="/" end className={({ isActive }) => (isActive ? "navlink on" : "navlink")}>
@@ -65,7 +63,6 @@ export default function SiteNav() {
             <div><small>Wallet & network</small><WalletButton /></div>
             <div><small>Appearance</small><ThemeToggle /></div>
           </div>
-          <p className="mobile-nav-note"><span className="dot" /> DreamDEX Event Contracts on Somnia Shannon</p>
         </aside>
       </>}
     </header>

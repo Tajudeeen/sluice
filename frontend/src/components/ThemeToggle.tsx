@@ -18,8 +18,7 @@ export default function ThemeToggle() {
       aria-label={`Switch to ${nextTheme} mode`}
       title={`Switch to ${nextTheme} mode`}
     >
-      <span className="theme-icon" aria-hidden="true" />
-      <span className="theme-label">{nextTheme}</span>
+      <span aria-hidden="true">🌙</span>
     </button>
   );
 }
