@@ -57,6 +57,10 @@ export function marketCategory(market: Pick<DreamMarket, "asset" | "question">):
 
 export async function getDreamBook(market: DreamMarket): Promise<UnifiedOrderBook> {
   const raw = await dreamdexExchange.client.getBinaryOrderBook(market.poolAddress, { depth: 8, decimals: market.quoteDecimals });
+  return binaryBookToUnified(market, raw);
+}
+
+function binaryBookToUnified(market: DreamMarket, raw: { yesBids: { price: bigint; quantity: bigint }[]; yesAsks: { price: bigint; quantity: bigint }[] }): UnifiedOrderBook {
   const priceScale = 10 ** market.quoteDecimals;
   const amountScale = 10 ** market.baseDecimals;
   return {
@@ -65,6 +69,25 @@ export async function getDreamBook(market: DreamMarket): Promise<UnifiedOrderBoo
     asks: raw.yesAsks.map((level) => [Number(level.price) / priceScale, Number(level.quantity) / amountScale]),
     timestamp: Date.now(),
     info: raw,
+  };
+}
+
+/** Subscribe to Somnia's live market tail and project its binary book into the UI shape. */
+export async function watchDreamBook(market: DreamMarket, listener: (book: UnifiedOrderBook) => void): Promise<() => void> {
+  let stopped = false;
+  const handle = await dreamdexExchange.client.watchMarket(market.poolAddress);
+  if (stopped) { handle.stop(); return () => undefined; }
+  const publish = () => {
+    if (stopped) return;
+    listener(binaryBookToUnified(market, dreamdexExchange.client.getLiveBinaryOrderBook(market.poolAddress, { depth: 8 })));
+  };
+  const unsubscribe = dreamdexExchange.client.subscribeLive(publish);
+  publish();
+  return () => {
+    if (stopped) return;
+    stopped = true;
+    unsubscribe();
+    handle.stop();
   };
 }
 

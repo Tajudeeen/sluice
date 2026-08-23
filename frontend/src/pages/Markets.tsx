@@ -5,7 +5,7 @@ import type { Candle, UnifiedOrderBook } from "@somnia-chain/markets-sdk";
 import type { DreamMarket, WalletSnapshot } from "../dreamdex";
 import {
   DREAMDEX_CHAIN_ID, DREAMDEX_EXPLORER_URL, SOMNIA_TESTNET_FAUCET_URL, dreamdexExchange, executionPreview, safeOrderSize,
-  candleQuoteVolume, formatExpiry, getDreamBook, getDreamCandles, getDreamWalletSnapshot,
+  candleQuoteVolume, formatExpiry, getDreamBook, getDreamCandles, getDreamWalletSnapshot, watchDreamBook,
   listDreamMarkets, marketCategory, marketLabel, minutesLeft, probabilityFromBook,
 } from "../dreamdex";
 
@@ -32,6 +32,7 @@ export default function Markets() {
   const [price, setPrice] = useState(0.5);
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [status, setStatus] = useState("Loading live Event Contracts...");
+  const [bookMode, setBookMode] = useState<"connecting" | "live" | "fallback">("connecting");
   const [txHash, setTxHash] = useState("");
   const [trail, setTrail] = useState<TrailItem[]>([]);
   const [category, setCategory] = useState("ALL");
@@ -62,13 +63,19 @@ export default function Markets() {
     if (!selected) return;
     let active = true;
     let initialized = false;
-    const refreshBook = () => getDreamBook(selected).then((nextBook) => {
+    let stopLive: (() => void) | null = null;
+    let fallbackTimer: number | null = null;
+    const applyBook = (nextBook: UnifiedOrderBook) => {
       if (!active) return;
       setBook(nextBook);
       if (!initialized) {
         setPrice((side === "buy" ? nextBook.asks[0]?.[0] : nextBook.bids[0]?.[0]) ?? probabilityFromBook(nextBook));
         initialized = true;
       }
+    };
+    const refreshBook = () => getDreamBook(selected).then((nextBook) => {
+      if (!active) return;
+      applyBook(nextBook);
       record("info", "Book refreshed", `${nextBook.bids.length} bid and ${nextBook.asks.length} ask levels loaded from DreamDEX`);
     }).catch((error: any) => {
       if (!active) return;
@@ -76,10 +83,21 @@ export default function Markets() {
       record("block", "Market snapshot", error?.message || "Order book unavailable");
     });
     const loadCandles = () => getDreamCandles(selected).then((value) => active && setCandles(value)).catch(() => active && record("info", "History unavailable", "Live book remains authoritative; candles are not indexed for this pool yet"));
-    setBook(null); setCandles([]); refreshBook(); loadCandles();
-    const bookTimer = window.setInterval(refreshBook, 10_000);
+    setBook(null); setCandles([]); setBookMode("connecting"); loadCandles();
+    void watchDreamBook(selected, (nextBook) => { applyBook(nextBook); setBookMode("live"); setStatus("Live Somnia book connected; Safe Size updates with liquidity"); }).then((stop) => {
+      if (!active) { stop(); return; }
+      stopLive = stop;
+      record("pass", "Live book connected", "Safe Size now recalculates from Somnia stream updates");
+    }).catch(() => {
+      if (!active) return;
+      setBookMode("fallback");
+      setStatus("Live stream unavailable; using a 10-second market snapshot fallback");
+      record("info", "Live stream unavailable", "Using a 10-second DreamDEX snapshot fallback");
+      refreshBook();
+      fallbackTimer = window.setInterval(refreshBook, 10_000);
+    });
     const candleTimer = window.setInterval(loadCandles, 60_000);
-    return () => { active = false; window.clearInterval(bookTimer); window.clearInterval(candleTimer); };
+    return () => { active = false; stopLive?.(); if (fallbackTimer != null) window.clearInterval(fallbackTimer); window.clearInterval(candleTimer); };
   }, [selected?.marketId]);
 
   useEffect(() => {
@@ -193,7 +211,7 @@ export default function Markets() {
   }
 
   return <div className="app dreamdex-app"><div className="bg" aria-hidden="true" />
-    <section className="pitch dream-pitch"><div className="section-kicker">SLUICE MARKETS / DREAMDEX EVENT CONTRACTS</div><h1>Trade the event.<br /><em>Know the limits.</em></h1><p>Inspect the live order book, choose a limit, and review every execution check before the order reaches DreamDEX on Somnia.</p><div className="console-status"><span><i /> {status}</span><span>Shannon / {DREAMDEX_CHAIN_ID}</span><span><a href={DREAMDEX_EXPLORER_URL} target="_blank" rel="noreferrer">Explorer ↗</a></span></div></section>
+    <section className="pitch dream-pitch"><div className="section-kicker">SLUICE MARKETS / DREAMDEX EVENT CONTRACTS</div><h1>Trade the event.<br /><em>Know the limits.</em></h1><p>Inspect the live order book, choose a limit, and review every execution check before the order reaches DreamDEX on Somnia.</p><div className="console-status"><span><i /> {status}</span><span className={`book-state ${bookMode}`}><i /> {bookMode === "live" ? "LIVE BOOK" : bookMode === "fallback" ? "SNAPSHOT FALLBACK" : "CONNECTING"}</span><span>Shannon / {DREAMDEX_CHAIN_ID}</span><span><a href={DREAMDEX_EXPLORER_URL} target="_blank" rel="noreferrer">Explorer ↗</a></span></div></section>
     <main className="grid dream-grid">
       <section className="card market-board"><div className="card-label">LIVE EVENT CONTRACTS</div><div className="market-filters" aria-label="Market categories">{categories.map((item) => <button key={item} className={category === item ? "active" : ""} disabled={categoryCount(item) === 0} onClick={() => chooseCategory(item)}>{item}<span>{categoryCount(item)}</span></button>)}</div><div className="market-list">{visibleMarkets.map((market) => <button key={market.marketId} className={`market-row ${selected?.marketId === market.marketId ? "selected" : ""}`} onClick={() => setSelected(market)}><span><b>{market.asset}</b><small>{marketLabel(market)}</small></span><strong>{minutesLeft(market.expiry)}m</strong><i>{market.status}</i></button>)}{!visibleMarkets.length && <p className="muted">No live markets in this category yet.</p>}</div><p className="market-source">The current Shannon index is crypto-only. Sports, politics, and culture filters activate automatically when DreamDEX publishes those contracts.</p></section>
       <section className="card market-detail">{selected ? <><div className="card-label">LIVE MARKET INTELLIGENCE / {selected.asset}</div><h2>{marketLabel(selected)}</h2><p className="muted">Expires {formatExpiry(selected.expiry)} · {selected.interval || "rolling"} cadence · DreamDEX indexed</p><div className="probability"><span>UP probability</span><b>{Math.round(midpoint * 100)}%</b><small>midpoint from the live DreamDEX order book</small></div><div className="market-metrics"><div><span>Spread</span><b>{preview?.spreadBps == null ? "—" : `${preview.spreadBps.toFixed(0)} bps`}</b></div><div><span>24H volume</span><b>{compactNumber(quoteVolume)}</b></div><div><span>Trades</span><b>{compactNumber(Number(selected.tradeCount || 0))}</b></div><div><span>Visible depth</span><b>{preview ? preview.visibleDepth.toFixed(2) : "—"}</b></div></div><ProbabilityChart candles={candles} decimals={selected.quoteDecimals} /><div className="book"><div><label>BIDS / BUYERS</label>{(book?.bids || []).slice(0, 5).map(([p, q]) => <p key={`${p}-${q}`}><span>{(p * 100).toFixed(1)}%</span><b>{q.toFixed(2)}</b></p>)}</div><div><label>ASKS / SELLERS</label>{(book?.asks || []).slice(0, 5).map(([p, q]) => <p key={`${p}-${q}`}><span>{(p * 100).toFixed(1)}%</span><b>{q.toFixed(2)}</b></p>)}</div></div></> : <p className="muted">Select a market.</p>}</section>
