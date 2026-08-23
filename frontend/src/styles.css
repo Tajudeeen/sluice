@@ -217,9 +217,6 @@ header.hero {
 .addr { color: var(--ink); font: 700 11px/1 var(--mono); }
 .network-select { min-height: 38px; max-width: 148px; padding: 8px 28px 8px 10px; border: 1px solid var(--line-strong); border-radius: 0; background: var(--paper); color: var(--ink); font: 700 9px/1 var(--mono); letter-spacing: .03em; text-transform: uppercase; }
 .network-warning { border-color: var(--warn); color: var(--warn); }
-.rpc-repair { border-color: var(--warn); color: var(--warn); }
-.faucet-claim { border-color: var(--signal-dark); color: var(--signal-dark); }
-.wallet-error { max-width: 260px; color: var(--bad); font: 600 9px/1.35 var(--mono); }
 .nav-actions { justify-self: end; display: flex; align-items: center; gap: 10px; }
 .theme-toggle { min-width: 86px; min-height: 38px; padding: 9px 11px; border-color: var(--line-strong); background: transparent; }
 .theme-toggle:hover { background: var(--acid); color: #171814; }
@@ -824,6 +821,10 @@ button.danger:hover { background: var(--ink); box-shadow: 4px 4px 0 var(--bad); 
 .activity-row small, .activity-row em { overflow: hidden; color: var(--slate); font: 600 10px/1.4 var(--mono); font-style: normal; text-overflow: ellipsis; }
 .activity-row a { width: max-content; color: var(--signal-dark); font: 700 10px/1 var(--mono); text-decoration: underline; }
 .approval-note { margin: 14px 0; padding: 10px 12px; border-left: 3px solid var(--warn); background: var(--paper-deep); }
+.testnet-assets { display: flex; flex-wrap: wrap; gap: 5px 8px; margin: 12px 0; color: var(--slate); font: 700 10px/1.4 var(--mono); }
+.testnet-assets a { color: var(--signal-dark); text-decoration: underline; }
+.testnet-assets small { flex-basis: 100%; font: inherit; font-weight: 600; }
+.trade-block-reason { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--bad); background: #ffdcd4; color: var(--bad); font: 700 10px/1.4 var(--mono); }
 .state-pill { width: max-content; padding: 6px 8px; border: 1px solid currentColor; font: 700 9px/1 var(--mono); font-style: normal; }
 .state-pill.live { color: var(--good); }
 .state-pill.settled { color: var(--signal-dark); }

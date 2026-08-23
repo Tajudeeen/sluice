@@ -8,6 +8,7 @@ export const DREAMDEX_RPC_URLS = ["https://api.infra.testnet.somnia.network", DR
 export const DREAMDEX_WS_URL = (import.meta.env.VITE_DREAMDEX_WS_URL as string) || "wss://dream-rpc.somnia.network/ws";
 export const DREAMDEX_CHAIN_ID = 50312;
 export const DREAMDEX_EXPLORER_URL = (import.meta.env.VITE_DREAMDEX_EXPLORER_URL as string) || "https://shannon-explorer.somnia.network";
+export const SOMNIA_TESTNET_FAUCET_URL = "https://testnet.somnia.network/";
 
 export const dreamdexExchange = new SomniaMarkets({
   indexerUrl: DREAMDEX_INDEXER_URL,

@@ -4,7 +4,7 @@ import { useAccount, useChainId, useSwitchChain, useWalletClient } from "wagmi";
 import type { Candle, UnifiedOrderBook } from "@somnia-chain/markets-sdk";
 import type { DreamMarket, WalletSnapshot } from "../dreamdex";
 import {
-  DREAMDEX_CHAIN_ID, DREAMDEX_EXPLORER_URL, dreamdexExchange, executionPreview,
+  DREAMDEX_CHAIN_ID, DREAMDEX_EXPLORER_URL, SOMNIA_TESTNET_FAUCET_URL, dreamdexExchange, executionPreview,
   candleQuoteVolume, formatExpiry, getDreamBook, getDreamCandles, getDreamWalletSnapshot,
   listDreamMarkets, marketCategory, marketLabel, minutesLeft, probabilityFromBook,
 } from "../dreamdex";
@@ -96,21 +96,39 @@ export default function Markets() {
   }, [selected?.marketId, address]);
 
   useEffect(() => {
-    const refreshAfterClaim = () => {
-      if (!selected || !address) return;
-      getDreamWalletSnapshot(selected, address).then((snapshot) => { setWalletSnapshot(snapshot); setWalletCheck("ready"); }).catch(() => undefined);
-    };
-    window.addEventListener("sluice:collateral-claimed", refreshAfterClaim);
-    return () => window.removeEventListener("sluice:collateral-claimed", refreshAfterClaim);
-  }, [selected?.marketId, address]);
-
-  useEffect(() => {
     if (!book) return;
     const top = side === "buy" ? book.asks[0]?.[0] : book.bids[0]?.[0];
     if (top != null) setPrice(top);
   }, [side]);
 
   const preview = useMemo(() => selected ? executionPreview(selected, book, amount, price, side, address ? walletSnapshot : undefined) : null, [selected, book, amount, price, side, address, walletSnapshot]);
+  const blockingChecks = preview?.checks.filter((check) => check.status === "block") || [];
+  const blockedCheck = blockingChecks[0];
+  const collateralBlocked = blockingChecks.length === 1 && blockedCheck?.label === "Collateral";
+  const tradeBlockReason = !address
+    ? "Connect a wallet to continue."
+    : chainId !== DREAMDEX_CHAIN_ID
+      ? null
+      : !walletClient
+        ? "The connected wallet signer is unavailable."
+        : walletCheck === "loading"
+          ? "Checking collateral and position balances on Shannon."
+          : walletCheck === "error" || walletSnapshot === null
+            ? "Wallet balances could not be verified. Check the wallet's Shannon RPC and refresh."
+            : blockingChecks.length
+              ? blockingChecks.map((check) => check.detail).join(" ")
+              : !preview?.allowed ? "This order does not pass the execution policy." : null;
+  const tradeButtonLabel = !address
+    ? "Connect wallet to execute"
+    : chainId !== DREAMDEX_CHAIN_ID
+      ? "Switch to Shannon"
+      : walletCheck === "loading"
+        ? "Verifying wallet state"
+        : collateralBlocked
+          ? "Add tUSDC collateral"
+          : tradeBlockReason
+            ? blockingChecks.length > 1 ? `Blocked: ${blockingChecks.length} checks` : `Blocked: ${blockedCheck?.label || "wallet check"}`
+            : "Sign & execute IOC";
   const midpoint = book ? probabilityFromBook(book) : 0.5;
   const quoteVolume = selected ? candleQuoteVolume(candles, selected.quoteDecimals) : 0;
   const categories = ["ALL", "CRYPTO", "SPORTS", "POLITICS", "CULTURE", "OTHER"];
@@ -172,7 +190,7 @@ export default function Markets() {
     <main className="grid dream-grid">
       <section className="card market-board"><div className="card-label">LIVE EVENT CONTRACTS</div><div className="market-filters" aria-label="Market categories">{categories.map((item) => <button key={item} className={category === item ? "active" : ""} disabled={categoryCount(item) === 0} onClick={() => chooseCategory(item)}>{item}<span>{categoryCount(item)}</span></button>)}</div><div className="market-list">{visibleMarkets.map((market) => <button key={market.marketId} className={`market-row ${selected?.marketId === market.marketId ? "selected" : ""}`} onClick={() => setSelected(market)}><span><b>{market.asset}</b><small>{marketLabel(market)}</small></span><strong>{minutesLeft(market.expiry)}m</strong><i>{market.status}</i></button>)}{!visibleMarkets.length && <p className="muted">No live markets in this category yet.</p>}</div><p className="market-source">The current Shannon index is crypto-only. Sports, politics, and culture filters activate automatically when DreamDEX publishes those contracts.</p></section>
       <section className="card market-detail">{selected ? <><div className="card-label">LIVE MARKET INTELLIGENCE / {selected.asset}</div><h2>{marketLabel(selected)}</h2><p className="muted">Expires {formatExpiry(selected.expiry)} · {selected.interval || "rolling"} cadence · DreamDEX indexed</p><div className="probability"><span>UP probability</span><b>{Math.round(midpoint * 100)}%</b><small>midpoint from the live DreamDEX order book</small></div><div className="market-metrics"><div><span>Spread</span><b>{preview?.spreadBps == null ? "—" : `${preview.spreadBps.toFixed(0)} bps`}</b></div><div><span>24H volume</span><b>{compactNumber(quoteVolume)}</b></div><div><span>Trades</span><b>{compactNumber(Number(selected.tradeCount || 0))}</b></div><div><span>Visible depth</span><b>{preview ? preview.visibleDepth.toFixed(2) : "—"}</b></div></div><ProbabilityChart candles={candles} decimals={selected.quoteDecimals} /><div className="book"><div><label>BIDS / BUYERS</label>{(book?.bids || []).slice(0, 5).map(([p, q]) => <p key={`${p}-${q}`}><span>{(p * 100).toFixed(1)}%</span><b>{q.toFixed(2)}</b></p>)}</div><div><label>ASKS / SELLERS</label>{(book?.asks || []).slice(0, 5).map(([p, q]) => <p key={`${p}-${q}`}><span>{(p * 100).toFixed(1)}%</span><b>{q.toFixed(2)}</b></p>)}</div></div></> : <p className="muted">Select a market.</p>}</section>
-      <section className="card trade-ticket"><div className="card-label">EXECUTION POLICY / IOC ORDER</div><div className="segmented"><button className={side === "buy" ? "active" : ""} onClick={() => setSide("buy")}>Buy UP</button><button className={side === "sell" ? "active" : ""} onClick={() => setSide("sell")}>Sell UP</button></div><label>Shares<input type="number" min="0.001" max="25" step="0.001" value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><label>Limit probability<input type="number" min="0.001" max="0.999" step="0.001" value={price} onChange={(event) => setPrice(Number(event.target.value))} /></label>{preview && <><div className="execution-estimate"><div><span>Expected fill</span><b>{preview.estimatedFill == null ? "NOT FILLABLE" : `${(preview.estimatedFill * 100).toFixed(2)}%`}</b></div><div><span>Estimated cost</span><b>{preview.estimatedCost == null ? "—" : preview.estimatedCost.toFixed(3)}</b></div><div><span>Price impact</span><b>{preview.slippageBps == null ? "—" : `${preview.slippageBps.toFixed(0)} bps`}</b></div></div><div className={`decision ${preview.allowed ? "allow" : "block"}`}><strong>{preview.allowed ? "APPROVED" : "BLOCKED"}</strong><span>Risk score {preview.score}/100</span>{preview.checks.map((check) => <small className={`check-${check.status}`} key={check.label}><i>{check.status === "pass" ? "✓" : check.status === "warn" ? "!" : "×"}</i><span><b>{check.label}</b>{check.detail}</span></small>)}</div></>}<p className="muted small approval-note">{side === "buy" ? "DreamDEX may request a maximum ERC-20 collateral allowance before this order." : "DreamDEX may request a one-time ERC-6909 outcome-token operator approval before this order."} Review the spender and permissions in your wallet.</p><button className="primary big" disabled={!address || (chainId === DREAMDEX_CHAIN_ID && (!preview?.allowed || !walletClient || walletSnapshot === null))} onClick={execute}>{!address ? "Connect wallet to execute" : chainId !== DREAMDEX_CHAIN_ID ? "Switch to Shannon" : !walletClient ? "Wallet unavailable" : walletCheck === "loading" ? "Verifying wallet state" : walletCheck === "error" ? "Wallet checks unavailable" : "Sign & execute IOC"}</button>{txHash && <a className="text-link" href={`${DREAMDEX_EXPLORER_URL}/tx/${txHash}`} target="_blank" rel="noreferrer">View confirmed transaction ↗</a>}</section>
+      <section className="card trade-ticket"><div className="card-label">EXECUTION POLICY / IOC ORDER</div><div className="segmented"><button className={side === "buy" ? "active" : ""} onClick={() => setSide("buy")}>Buy UP</button><button className={side === "sell" ? "active" : ""} onClick={() => setSide("sell")}>Sell UP</button></div><label>Shares<input type="number" min="0.001" max="25" step="0.001" value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><label>Limit probability<input type="number" min="0.001" max="0.999" step="0.001" value={price} onChange={(event) => setPrice(Number(event.target.value))} /></label>{preview && <><div className="execution-estimate"><div><span>Expected fill</span><b>{preview.estimatedFill == null ? "NOT FILLABLE" : `${(preview.estimatedFill * 100).toFixed(2)}%`}</b></div><div><span>Estimated cost</span><b>{preview.estimatedCost == null ? "—" : preview.estimatedCost.toFixed(3)}</b></div><div><span>Price impact</span><b>{preview.slippageBps == null ? "—" : `${preview.slippageBps.toFixed(0)} bps`}</b></div></div><div className={`decision ${preview.allowed ? "allow" : "block"}`}><strong>{preview.allowed ? "APPROVED" : "BLOCKED"}</strong><span>Risk score {preview.score}/100</span>{preview.checks.map((check) => <small className={`check-${check.status}`} key={check.label}><i>{check.status === "pass" ? "✓" : check.status === "warn" ? "!" : "×"}</i><span><b>{check.label}</b>{check.detail}</span></small>)}</div></>}<p className="muted small approval-note">{side === "buy" ? "DreamDEX may request a maximum ERC-20 collateral allowance before this order." : "DreamDEX may request a one-time ERC-6909 outcome-token operator approval before this order."} Review the spender and permissions in your wallet.</p><p className="testnet-assets">Need Shannon gas? <a href={SOMNIA_TESTNET_FAUCET_URL} target="_blank" rel="noreferrer">Open the official Somnia faucet ↗</a><small>Buy orders also require DreamDEX tUSDC in this wallet.</small></p>{tradeBlockReason && chainId === DREAMDEX_CHAIN_ID && <p className="trade-block-reason" role="status">{tradeBlockReason}</p>}<button className="primary big" disabled={!address || (chainId === DREAMDEX_CHAIN_ID && Boolean(tradeBlockReason))} onClick={execute}>{tradeButtonLabel}</button>{txHash && <a className="text-link" href={`${DREAMDEX_EXPLORER_URL}/tx/${txHash}`} target="_blank" rel="noreferrer">View confirmed transaction ↗</a>}</section>
       <section className="card execution-trail"><div className="card-label">VERIFIABLE EXECUTION TRAIL</div><h2>From market snapshot to on-chain result</h2>{trail.length ? <div className="trail-list">{trail.map((item, index) => <div className={`trail-item ${item.state}`} key={`${item.at}-${index}`}><i /><span><b>{item.label}</b><small>{item.detail}</small></span><time>{item.at}</time></div>)}</div> : <p className="muted">Select a market to begin the live audit trail. Policy decisions and wallet outcomes appear here.</p>}</section>
     </main><footer className="foot"><Link to="/portfolio">Open portfolio</Link> · Market context is advisory; deterministic policy and Somnia transactions are authoritative.</footer>
   </div>;
