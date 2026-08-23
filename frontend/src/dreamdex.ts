@@ -16,6 +16,7 @@ export const dreamdexExchange = new SomniaMarkets({
 });
 
 export type DreamMarket = BinaryMarket & { live: boolean };
+export type MarketCategory = "CRYPTO" | "SPORTS" | "POLITICS" | "CULTURE" | "OTHER";
 export type RiskCheck = { label: string; status: "pass" | "warn" | "block"; detail: string };
 export type ExecutionPreview = {
   allowed: boolean;
@@ -39,8 +40,17 @@ export type WalletSnapshot = {
 };
 
 export async function listDreamMarkets(): Promise<DreamMarket[]> {
-  const rows = await dreamdexExchange.client.listLiveBinaryMarkets({ limit: 30, orderBy: "closingSoon" });
+  const rows = await dreamdexExchange.client.listLiveBinaryMarkets({ limit: 100, orderBy: "closingSoon" });
   return rows.map((row) => ({ ...row, live: row.status === "Trading" }));
+}
+
+export function marketCategory(market: Pick<DreamMarket, "asset" | "question">): MarketCategory {
+  const text = `${market.asset} ${market.question || ""}`.toLowerCase();
+  if (/\b(btc|bitcoin|eth|ethereum|sol|solana|crypto|token|usdc|xrp|doge)\b/.test(text)) return "CRYPTO";
+  if (/\b(nba|wnba|nfl|football|soccer|basketball|baseball|tennis|ufc|f1|formula 1|champions league|premier league)\b/.test(text)) return "SPORTS";
+  if (/\b(election|president|senate|congress|parliament|minister|governor|vote|politic)\b/.test(text)) return "POLITICS";
+  if (/\b(oscar|grammy|film|movie|music|album|celebrity|box office|television|tv)\b/.test(text)) return "CULTURE";
+  return "OTHER";
 }
 
 export async function getDreamBook(market: DreamMarket): Promise<UnifiedOrderBook> {

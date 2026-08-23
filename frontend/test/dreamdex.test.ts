@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Candle, UnifiedOrderBook } from "@somnia-chain/markets-sdk";
 import type { DreamMarket, WalletSnapshot } from "../src/dreamdex";
-import { candleQuoteVolume, executionPreview } from "../src/dreamdex";
+import { candleQuoteVolume, executionPreview, marketCategory } from "../src/dreamdex";
 
 const market = {
   marketId: "0x0000000000000000000000000000000000000000000000000000000000000001",
@@ -61,5 +61,13 @@ describe("candleQuoteVolume", () => {
       { bucketStart: "2", openPrice: "0", high: "0", low: "0", closePrice: "0", baseVolume: "0", quoteVolume: "1250000", tradeCount: 1 },
     ] as Candle[];
     expect(candleQuoteVolume(candles, 6)).toBeCloseTo(3.75, 8);
+  });
+});
+
+describe("marketCategory", () => {
+  it("classifies crypto, sports, and politics listings from their asset and question", () => {
+    expect(marketCategory({ asset: "BTC", question: "Will BTC close above its open?" })).toBe("CRYPTO");
+    expect(marketCategory({ asset: "NBA", question: "Will the Lakers win tonight?" })).toBe("SPORTS");
+    expect(marketCategory({ asset: "USA", question: "Who wins the presidential election?" })).toBe("POLITICS");
   });
 });

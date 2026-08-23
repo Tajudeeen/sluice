@@ -1,4 +1,4 @@
-import { useAccount, useConnect, useDisconnect, useChainId } from "wagmi";
+import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { shortAddr } from "../sluice";
 import { DREAMDEX_CHAIN_ID, DREAMDEX_EXPLORER_URL, DREAMDEX_RPC_URL } from "../dreamdex";
@@ -8,6 +8,7 @@ export default function WalletButton() {
   const { address, isConnected } = useAccount();
   const { connectAsync } = useConnect();
   const { disconnect } = useDisconnect();
+  const { switchChainAsync } = useSwitchChain();
   const walletChainId = useChainId();
 
   async function ensureDreamdexChain() {
@@ -32,17 +33,33 @@ export default function WalletButton() {
 
   async function switchWalletNetwork() {
     try {
-      await ensureDreamdexChain();
+      if (switchChainAsync) await switchChainAsync({ chainId: DREAMDEX_CHAIN_ID });
+      else await ensureDreamdexChain();
     } catch (err) {
       console.error("Wallet network switch failed", err);
     }
   }
 
+  async function selectWalletNetwork(chainId: 1 | 50312) {
+    try {
+      await switchChainAsync({ chainId });
+    } catch (err) {
+      console.error("Wallet network switch failed", err);
+    }
+  }
+
+  const isWrongNetwork = isConnected && walletChainId !== DREAMDEX_CHAIN_ID;
+
   if (isConnected) {
     return (
       <div className="wallet">
         <span className="addr">{shortAddr(address!)}</span>
-        {walletChainId !== DREAMDEX_CHAIN_ID && <button className="ghost network-warning" onClick={switchWalletNetwork}>Switch to Shannon</button>}
+        <select className="network-select" aria-label="Wallet network" value={walletChainId === 1 || walletChainId === DREAMDEX_CHAIN_ID ? walletChainId : ""} onChange={(event) => selectWalletNetwork(Number(event.target.value) as 1 | 50312)}>
+          {walletChainId !== 1 && walletChainId !== DREAMDEX_CHAIN_ID && <option value="">Unsupported network</option>}
+          <option value={DREAMDEX_CHAIN_ID}>Somnia Shannon</option>
+          <option value={1}>Ethereum</option>
+        </select>
+        {isWrongNetwork && <button className="ghost network-warning" onClick={switchWalletNetwork}>Switch to Shannon</button>}
         <button className="ghost" onClick={() => disconnect()}>
           Disconnect
         </button>

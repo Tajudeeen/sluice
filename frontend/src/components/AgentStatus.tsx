@@ -31,13 +31,13 @@ export default function AgentStatus() {
   const d = health?.lastDecision;
   return (
     <section className="card agent-status">
-      <div className="card-label">ATTESTER / AI SIGNAL</div>
+      <div className="card-label">ATTESTER / ACTIVITY SIGNAL</div>
       <h2>{health?.ok ? "Agent online" : "Agent unreachable"}</h2>
-      {health?.ok && <p className="muted small">Settlement mode: <b>{health.mode}</b>. AI provider: <b>{health.aiProvider?.toUpperCase() || "UNKNOWN"}</b>. Deterministic rules remain authoritative.</p>}
+      {health?.ok && <p className="muted small">Settlement mode: <b>{health.mode}</b>. Signal source: <b>{health.aiProvider?.toUpperCase() || "DETERMINISTIC"}</b>. Deterministic rules remain authoritative.</p>}
       {d ? (
         <div className="agent-decision">
           <span>Last decision: <b>{d.decision}</b> - score {d.deterministicScore}</span>
-          <span>AI: <b>{d.aiParticipated ? AI_LABELS[d.aiClassification] ?? "CLASSIFIED" : "NOT NEEDED"}</b>{d.aiParticipated ? ` (${d.aiConfidence}% confidence)` : ""}</span>
+          <span>Activity: <b>{d.aiParticipated ? AI_LABELS[d.aiClassification] ?? "CLASSIFIED" : "NOT NEEDED"}</b>{d.aiParticipated ? ` (${d.aiConfidence}% confidence)` : ""}</span>
           {d.aiReason && <span className="muted small">{d.aiReason}</span>}
         </div>
       ) : health?.ok ? <p className="muted small">No settled request yet. Submit a test movement to show the decision trail.</p> : null}
