@@ -49,6 +49,16 @@ button, input, select { font: inherit; }
 button { color: inherit; }
 
 .app, .splash { position: relative; min-height: 100vh; overflow: clip; }
+.launch-screen { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: var(--paper); color: var(--ink); animation: launch-out .45s ease 2.55s forwards; }
+.launch-card { display: flex; align-items: center; flex-direction: column; gap: 12px; min-width: min(82vw, 310px); padding: 28px; text-align: center; }
+.launch-card .launch-mark { width: 52px; height: 52px; padding: 7px; gap: 4px; box-shadow: 5px 5px 0 var(--ink); animation: launch-pulse 1.4s ease-in-out infinite; }
+.launch-card strong { font: 800 18px/1 var(--mono); letter-spacing: .1em; }
+.launch-card small { color: var(--slate); font: 700 9px/1 var(--mono); letter-spacing: .12em; }
+.launch-line { width: 150px; height: 2px; margin-top: 8px; overflow: hidden; background: var(--line); }
+.launch-line::after { display: block; width: 45%; height: 100%; background: var(--signal); content: ""; animation: launch-progress 2.7s linear forwards; }
+@keyframes launch-progress { from { transform: translateX(-100%); } to { transform: translateX(230%); } }
+@keyframes launch-pulse { 50% { transform: translateY(-4px); box-shadow: 5px 9px 0 var(--ink); } }
+@keyframes launch-out { to { opacity: 0; visibility: hidden; pointer-events: none; } }
 .bg {
   position: fixed;
   inset: 0;
@@ -175,7 +185,7 @@ header.hero {
 .dreamdex-app .primary { background: var(--signal); color: #fff; }
 .dreamdex-app .primary:hover { background: var(--signal-dark); }
 .dreamdex-app .market-row.selected, .dreamdex-app .market-row:hover { background: var(--paper-deep); }
-.brand::after { content: "POWERED BY DREAMDEX"; margin-left: 4px; color: var(--signal-dark); font: 700 9px/1 var(--mono); letter-spacing: .06em; }
+.brand::after { display: none; }
 .net {
   display: inline-flex;
   align-items: center;
