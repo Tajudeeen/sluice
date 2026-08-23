@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Candle, UnifiedOrderBook } from "@somnia-chain/markets-sdk";
 import type { DreamMarket, WalletSnapshot } from "../src/dreamdex";
-import { candleQuoteVolume, executionPreview, marketCategory } from "../src/dreamdex";
+import { candleQuoteVolume, executionPreview, marketCategory, safeOrderSize } from "../src/dreamdex";
 
 const market = {
   marketId: "0x0000000000000000000000000000000000000000000000000000000000000001",
@@ -52,6 +52,12 @@ describe("executionPreview", () => {
     expect(executionPreview(market, book(), 2, 0.48, "sell", wallet({ sellBalance: 1 })).allowed).toBe(false);
     expect(executionPreview(market, book(), 5, 0.52, "buy", wallet({ collateralBalance: 1 })).allowed).toBe(false);
   });
+
+  it("hard-blocks a buy above the trader's maximum downside", () => {
+    const result = executionPreview(market, book(), 5, 0.52, "buy", wallet(), { maxCost: 2 });
+    expect(result.allowed).toBe(false);
+    expect(result.checks).toContainEqual(expect.objectContaining({ label: "Maximum downside", status: "block" }));
+  });
 });
 
 describe("candleQuoteVolume", () => {
@@ -69,5 +75,23 @@ describe("marketCategory", () => {
     expect(marketCategory({ asset: "BTC", question: "Will BTC close above its open?" })).toBe("CRYPTO");
     expect(marketCategory({ asset: "NBA", question: "Will the Lakers win tonight?" })).toBe("SPORTS");
     expect(marketCategory({ asset: "USA", question: "Who wins the presidential election?" })).toBe("POLITICS");
+  });
+});
+
+describe("safeOrderSize", () => {
+  it("finds the largest buy size that fits visible liquidity and collateral", () => {
+    const result = safeOrderSize(market, book(), 0.52, "buy", wallet(), { maxCost: 2 });
+    expect(result).toBe(4);
+    expect(executionPreview(market, book(), result, 0.52, "buy", wallet()).estimatedCost).toBe(2);
+    expect(executionPreview(market, book(), result + 0.001, 0.52, "buy", wallet()).estimatedCost).toBeGreaterThan(2);
+  });
+
+  it("returns zero when no minimum order can pass", () => {
+    expect(safeOrderSize(market, book(), 0.52, "buy", wallet({ collateralBalance: 0 }))).toBe(0);
+  });
+
+  it("respects sell inventory and exposure limits", () => {
+    expect(safeOrderSize(market, book(), 0.48, "sell", wallet({ sellBalance: 3.25 }))).toBe(3.25);
+    expect(safeOrderSize(market, book(), 0.52, "buy", wallet({ marketShares: 23 }))).toBe(2);
   });
 });

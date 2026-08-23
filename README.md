@@ -1,6 +1,6 @@
 # Sluice Markets
 
-Sluice Markets is a DreamDEX Event Contracts trading terminal for Somnia Shannon. It combines live market discovery, order-book analytics, deterministic pre-trade checks, wallet-signed IOC execution, and a chain-sourced portfolio view.
+Sluice Markets is a DreamDEX Event Contracts trading terminal for Somnia Shannon. Its differentiator is downside-capped Safe Size: the trader states the most tUSDC they are willing to lose, and Sluice compiles that budget into the largest order passing the live book, slippage, exposure, expiry, and collateral checks.
 
 Live app: https://tajudeeen.github.io/sluice/
 
@@ -9,6 +9,7 @@ Live app: https://tajudeeen.github.io/sluice/
 - Consumer trading application: browse real binary Event Contracts and submit bounded IOC orders.
 - Market analytics: probability midpoint, spread, visible depth, hourly quote volume, and price history.
 - Event Contracts: lifecycle, outcome balances, fills, settlement, and transaction proofs come from DreamDEX.
+- Downside-capped Safe Size: convert a maximum-loss budget into the largest executable order passing Sluice's live policy at the selected limit.
 
 ## What is verified before signing
 
@@ -21,6 +22,8 @@ The terminal refreshes the order book immediately before the wallet prompt and e
 - executable depth, limit price, spread, and price impact;
 - sell-side UP balance and buy-side collateral balance;
 - allowance and operator-approval disclosures.
+
+Safe Size runs the same preview policy used immediately before signing. It does not guarantee a fill after the snapshot changes; it gives the trader a bounded starting amount and the final pre-signing refresh remains authoritative.
 
 These are browser-side guardrails. They improve user safety and make the decision visible, but they are not protocol-enforced controls. DreamDEX contracts remain the matching and settlement authority, and a user can bypass the UI by calling the protocol directly.
 

@@ -2,8 +2,8 @@
 
 Sluice Markets should be entered as one project with multiple complementary
 positionings, not as duplicate submissions. The product has one coherent flow:
-discover a live DreamDEX Event Contract, inspect its market data, apply policy,
-and execute or block an IOC order on Somnia.
+discover a live DreamDEX Event Contract, inspect its market data, calculate the
+largest policy-safe size, and execute or block an IOC order on Somnia.
 
 ## Select These Tags
 
@@ -17,7 +17,8 @@ and execute or block an IOC order on Somnia.
 
 **Why it qualifies:** `/markets` is a usable trading terminal backed by the
 DreamDEX SDK. It discovers live markets, reads the real order book, calculates
-an executable price, requests a wallet signature, and submits an IOC order.
+an executable price and Safe Size, requests a wallet signature, and submits an
+IOC order.
 
 **Demo proof:** select a live market, show bids/asks, change the share amount,
 show the policy decision, then show the wallet execution trail and explorer link.
@@ -25,9 +26,9 @@ show the policy decision, then show the wallet execution trail and explorer link
 **Submission copy:**
 
 > Sluice Markets is a policy-controlled consumer trading terminal for DreamDEX
-> Event Contracts. Users can discover live binary markets, inspect the real
-> order book, preview fillability and risk, and submit wallet-signed IOC orders
-> on Somnia Shannon.
+> Event Contracts. A trader enters the maximum tUSDC they can lose, and its
+> Safe Size calculator converts that downside budget into the largest order
+> allowed by live depth, price impact, wallet collateral, and exposure limits.
 
 ### 2. Market Analytics Tool
 
@@ -46,27 +47,17 @@ levels, estimated fill panel, and the portfolio's recent-fills tab.
 > liquidity depth, execution impact, and chain-sourced portfolio activity so a
 > trader can compare opportunity and risk before signing.
 
-## Optional Supporting Positioning
-
-### AI-Assisted Trading Experience
-
-The product can be described as AI-assisted because context is advisory and
-deterministic policy is authoritative. Do not present it as a standalone
-autonomous AI trading agent unless the demo includes a live server-side thesis
-or agent endpoint that produces a traceable market recommendation. The current
-build's strongest evidence is the trading-app and analytics categories above.
-
 ## Two-Minute Demo Order
 
 1. Open `/markets` and select a live Event Contract.
 2. Show probability, spread, volume, history, and the real bid/ask book.
-3. Enter a small order and show estimated fill, depth, impact, and policy checks.
-4. Increase the amount or use an illiquid side to show a deterministic block.
-5. Return to a valid size and show the wallet execution trail.
+3. Show Safe Size and its binding constraint, then apply it with one click.
+4. Increase the amount above Safe Size to show a deterministic block.
+5. Reapply Safe Size and show the wallet execution trail.
 6. Open `/portfolio` and show fills, transaction proof, and lifecycle state.
 
 ## Judge-Facing One-Liner
 
-> A consumer DreamDEX trading terminal and market analytics layer that makes
-> Event Contract execution inspectable, policy-controlled, and verifiable on
-> Somnia.
+> Sluice calculates the largest DreamDEX Event Contract order that the live
+> market and connected wallet can safely support, then rechecks it before a
+> wallet-signed IOC transaction on Somnia.

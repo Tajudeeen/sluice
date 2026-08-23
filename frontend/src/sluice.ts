@@ -7,7 +7,7 @@ export const ASSET_ADDRESS = (import.meta.env.VITE_ASSET_ADDRESS as string) || "
 export const CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID || 50312);
 export const CHAIN_NAME = (import.meta.env.VITE_CHAIN_NAME as string) || "Somnia Shannon";
 export const NETWORK_TAG = (import.meta.env.VITE_NETWORK_TAG as string) || "Somnia Shannon";
-export const RPC_URL = (import.meta.env.VITE_RPC_URL as string) || "https://dream-rpc.somnia.network";
+export const RPC_URL = (import.meta.env.VITE_RPC_URL as string) || "https://api.infra.testnet.somnia.network";
 export const EXPLORER_URL = (import.meta.env.VITE_EXPLORER_URL as string) || "https://shannon-explorer.somnia.network";
 export const ATTESTER_ADDRESS = (import.meta.env.VITE_ATTESTER_ADDRESS as string) || "";
 export const AGENT_HEALTH_URL = (import.meta.env.VITE_AGENT_HEALTH_URL as string) || "";
@@ -18,7 +18,7 @@ export const CONFIGURED = !!GATE_ADDRESS && !!ASSET_ADDRESS;
 
 export const SLUICE_META = {
   name: "Sluice",
-  tagline: "Policy-driven execution firewall for tokenized assets",
+  tagline: "Downside-capped Event Contract execution",
   assetSymbol: "SLUSD",
   assetName: "Sluice Liquidity Unit",
 };

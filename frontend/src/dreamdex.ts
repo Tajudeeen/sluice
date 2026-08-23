@@ -3,8 +3,8 @@ import { somniaShannon } from "@somnia-chain/markets-sdk/chains";
 import type { Address, Hex } from "viem";
 
 export const DREAMDEX_INDEXER_URL = (import.meta.env.VITE_DREAMDEX_INDEXER_URL as string) || "https://dev.smk.somnia.host/v1/graphql";
-export const DREAMDEX_RPC_URL = (import.meta.env.VITE_DREAMDEX_RPC_URL as string) || "https://dream-rpc.somnia.network";
-export const DREAMDEX_RPC_URLS = ["https://api.infra.testnet.somnia.network", DREAMDEX_RPC_URL] as const;
+export const DREAMDEX_RPC_URL = (import.meta.env.VITE_DREAMDEX_RPC_URL as string) || "https://api.infra.testnet.somnia.network";
+export const DREAMDEX_RPC_URLS = [DREAMDEX_RPC_URL, "https://dream-rpc.somnia.network"] as const;
 export const DREAMDEX_WS_URL = (import.meta.env.VITE_DREAMDEX_WS_URL as string) || "wss://dream-rpc.somnia.network/ws";
 export const DREAMDEX_CHAIN_ID = 50312;
 export const DREAMDEX_EXPLORER_URL = (import.meta.env.VITE_DREAMDEX_EXPLORER_URL as string) || "https://shannon-explorer.somnia.network";
@@ -135,7 +135,7 @@ export function probabilityFromBook(book: UnifiedOrderBook): number {
 
 function formatPct(value: number): string { return `${(value * 100).toFixed(2)}%`; }
 
-export function executionPreview(market: DreamMarket, book: UnifiedOrderBook | null, amount: number, requestedPrice: number, side: "buy" | "sell", wallet?: WalletSnapshot | null): ExecutionPreview {
+export function executionPreview(market: DreamMarket, book: UnifiedOrderBook | null, amount: number, requestedPrice: number, side: "buy" | "sell", wallet?: WalletSnapshot | null, policy: { maxCost?: number } = {}): ExecutionPreview {
   const checks: RiskCheck[] = [];
   let score = 0;
   const levels = side === "buy" ? (book?.asks || []) : (book?.bids || []);
@@ -175,6 +175,11 @@ export function executionPreview(market: DreamMarket, book: UnifiedOrderBook | n
   else checks.push({ label: "Spread", status: "pass", detail: `${spreadBps.toFixed(0)} bps` });
   if (slippageBps != null && slippageBps > 150) { score += 25; checks.push({ label: "Price impact", status: "block", detail: `${slippageBps.toFixed(0)} bps expected impact` }); }
   else if (slippageBps != null) checks.push({ label: "Price impact", status: "pass", detail: `${slippageBps.toFixed(0)} bps from top of book` });
+  if (side === "buy" && policy.maxCost != null) {
+    if (!Number.isFinite(policy.maxCost) || policy.maxCost <= 0) { score += 100; checks.push({ label: "Maximum downside", status: "block", detail: "Enter a positive tUSDC loss budget" }); }
+    else if (estimatedCost != null && estimatedCost > policy.maxCost + 1e-9) { score += 100; checks.push({ label: "Maximum downside", status: "block", detail: `${estimatedCost.toFixed(3)} tUSDC cost exceeds the ${policy.maxCost.toFixed(3)} tUSDC budget` }); }
+    else if (estimatedCost != null) checks.push({ label: "Maximum downside", status: "pass", detail: `${estimatedCost.toFixed(3)} tUSDC worst-case entry cost within budget` });
+  }
   if (minutesLeft(market.expiry) < 3) { score += 30; checks.push({ label: "Time to expiry", status: "block", detail: "Less than 3 minutes remaining" }); }
   else checks.push({ label: "Time to expiry", status: "pass", detail: `${minutesLeft(market.expiry)} minutes remaining` });
   if (requestedPrice <= 0.08 || requestedPrice >= 0.92) { score += 20; checks.push({ label: "Tail pricing", status: "warn", detail: "Extreme probabilities require review" }); }
@@ -196,4 +201,25 @@ export function executionPreview(market: DreamMarket, book: UnifiedOrderBook | n
     else checks.push({ label: "Token approval", status: "pass", detail: "Existing collateral allowance covers this order" });
   }
   return { allowed: score < 70 && checks.every((check) => check.status !== "block"), score: Math.min(100, score), checks, bestPrice, estimatedFill, estimatedCost, slippageBps, spreadBps, visibleDepth };
+}
+
+/** Largest order size that passes the exact pre-signing policy and optional max-loss budget. */
+export function safeOrderSize(market: DreamMarket, book: UnifiedOrderBook | null, requestedPrice: number, side: "buy" | "sell", wallet?: WalletSnapshot | null, limits: { shareCap?: number; maxCost?: number } = {}): number {
+  const shareCap = Math.min(25, limits.shareCap ?? 25);
+  const maxCost = limits.maxCost;
+  if (!book || !Number.isFinite(requestedPrice) || requestedPrice <= 0 || !Number.isFinite(shareCap) || shareCap <= 0) return 0;
+  const passes = (size: number) => {
+    const result = executionPreview(market, book, size, requestedPrice, side, wallet, { maxCost });
+    return result.allowed;
+  };
+  if (!passes(0.001)) return 0;
+  let low = 1;
+  let high = Math.floor(shareCap * 1_000);
+  let best = 1;
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    if (passes(mid / 1_000)) { best = mid; low = mid + 1; }
+    else high = mid - 1;
+  }
+  return best / 1_000;
 }

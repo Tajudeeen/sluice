@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "license": "MIT",
-  "description": "Policy-controlled trading terminal for DreamDEX Event Contracts on Somnia",
+  "description": "Downside-capped Safe Size and IOC execution for DreamDEX Event Contracts on Somnia",
   "scripts": {
     "build": "npm run build:contracts && npm run build:agent",
     "build:contracts": "hardhat compile",

@@ -2,7 +2,7 @@
   "network": "Somnia Shannon",
   "chainId": 50312,
   "frontend": "https://tajudeeen.github.io/sluice/",
-  "rpc": "https://dream-rpc.somnia.network",
+  "rpc": "https://api.infra.testnet.somnia.network",
   "explorer": "https://shannon-explorer.somnia.network",
   "dreamdexIndexer": "https://dev.smk.somnia.host/v1/graphql",
   "dreamdexSdk": "@somnia-chain/markets-sdk@0.28.1",

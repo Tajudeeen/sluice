@@ -13,6 +13,8 @@ Sluice Markets is a hackathon demo for DreamDEX Event Contracts on Somnia Shanno
 
 Before signing, the UI refreshes book and wallet state and checks market lifecycle, expiry, order size, visible liquidity, spread, price impact, market exposure, global exposure, sell balance, and collateral balance. A stale or incomplete book blocks execution.
 
+For buy orders, the maximum-downside budget is a hard check. Safe Size searches for the largest three-decimal order that stays inside that tUSDC budget and passes the same market and wallet checks at the selected limit. It is a sizing aid, not a fill guarantee; the authoritative preflight runs again immediately before the wallet prompt.
+
 ## Wallet disclosures
 
 For buys, the SDK may request a maximum ERC-20 collateral allowance for the DreamDEX spender. For sells, it may request a one-time ERC-6909 outcome-token operator approval. Users must verify spender, token, amount, and network in the wallet before approving.
