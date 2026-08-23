@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAccount, useWalletClient } from "wagmi";
 import type { Candle, UnifiedOrderBook } from "@somnia-chain/markets-sdk";
-import type { DreamMarket } from "../dreamdex";
+import type { DreamMarket, WalletSnapshot } from "../dreamdex";
 import {
   DREAMDEX_CHAIN_ID, DREAMDEX_EXPLORER_URL, dreamdexExchange, executionPreview,
-  formatExpiry, getDreamBook, getDreamCandles, listDreamMarkets, marketLabel,
-  minutesLeft, probabilityFromBook,
+  candleQuoteVolume, formatExpiry, getDreamBook, getDreamCandles, getDreamWalletSnapshot,
+  listDreamMarkets, marketLabel, minutesLeft, probabilityFromBook,
 } from "../dreamdex";
 
 type TrailItem = { at: string; state: "info" | "pass" | "block"; label: string; detail: string };
@@ -25,6 +25,8 @@ export default function Markets() {
   const [selected, setSelected] = useState<DreamMarket | null>(null);
   const [book, setBook] = useState<UnifiedOrderBook | null>(null);
   const [candles, setCandles] = useState<Candle[]>([]);
+  const [walletSnapshot, setWalletSnapshot] = useState<WalletSnapshot | null | undefined>(undefined);
+  const [walletCheck, setWalletCheck] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [amount, setAmount] = useState(5);
   const [price, setPrice] = useState(0.5);
   const [side, setSide] = useState<"buy" | "sell">("buy");
@@ -55,23 +57,40 @@ export default function Markets() {
   useEffect(() => {
     if (!selected) return;
     let active = true;
-    setBook(null); setCandles([]);
-    Promise.allSettled([getDreamBook(selected), getDreamCandles(selected)]).then(([bookResult, candleResult]) => {
+    let initialized = false;
+    const refreshBook = () => getDreamBook(selected).then((nextBook) => {
       if (!active) return;
-      if (bookResult.status === "fulfilled") {
-        const nextBook = bookResult.value;
-        setBook(nextBook);
+      setBook(nextBook);
+      if (!initialized) {
         setPrice((side === "buy" ? nextBook.asks[0]?.[0] : nextBook.bids[0]?.[0]) ?? probabilityFromBook(nextBook));
-        record("info", "Market snapshot", `${nextBook.bids.length} bid and ${nextBook.asks.length} ask levels loaded from DreamDEX`);
-      } else {
-        setBook({ symbol: selected.marketId, bids: [], asks: [], timestamp: Date.now(), info: {} });
-        record("block", "Market snapshot", bookResult.reason?.message || "Order book unavailable");
+        initialized = true;
       }
-      if (candleResult.status === "fulfilled") setCandles(candleResult.value);
-      else record("info", "History unavailable", "Live book remains authoritative; candles are not indexed for this pool yet");
+      record("info", "Book refreshed", `${nextBook.bids.length} bid and ${nextBook.asks.length} ask levels loaded from DreamDEX`);
+    }).catch((error: any) => {
+      if (!active) return;
+      setBook({ symbol: selected.marketId, bids: [], asks: [], timestamp: Date.now(), info: {} });
+      record("block", "Market snapshot", error?.message || "Order book unavailable");
+    });
+    const loadCandles = () => getDreamCandles(selected).then((value) => active && setCandles(value)).catch(() => active && record("info", "History unavailable", "Live book remains authoritative; candles are not indexed for this pool yet"));
+    setBook(null); setCandles([]); refreshBook(); loadCandles();
+    const bookTimer = window.setInterval(refreshBook, 10_000);
+    const candleTimer = window.setInterval(loadCandles, 60_000);
+    return () => { active = false; window.clearInterval(bookTimer); window.clearInterval(candleTimer); };
+  }, [selected?.marketId]);
+
+  useEffect(() => {
+    if (!selected || !address) { setWalletSnapshot(undefined); setWalletCheck("idle"); return; }
+    let active = true;
+    setWalletCheck("loading");
+    setWalletSnapshot(null);
+    getDreamWalletSnapshot(selected, address).then((snapshot) => { if (active) { setWalletSnapshot(snapshot); setWalletCheck("ready"); } }).catch((error) => {
+      if (!active) return;
+      setWalletSnapshot(null);
+      setWalletCheck("error");
+      record("block", "Wallet checks unavailable", error?.message || "Could not read collateral or outcome balances");
     });
     return () => { active = false; };
-  }, [selected?.marketId]);
+  }, [selected?.marketId, address]);
 
   useEffect(() => {
     if (!book) return;
@@ -79,14 +98,28 @@ export default function Markets() {
     if (top != null) setPrice(top);
   }, [side]);
 
-  const preview = useMemo(() => selected ? executionPreview(selected, book, amount, price, side) : null, [selected, book, amount, price, side]);
+  const preview = useMemo(() => selected ? executionPreview(selected, book, amount, price, side, address ? walletSnapshot : undefined) : null, [selected, book, amount, price, side, address, walletSnapshot]);
   const midpoint = book ? probabilityFromBook(book) : 0.5;
-  const quoteVolume = selected ? Number(selected.cumulativeQuoteVolume || 0) / 10 ** selected.quoteDecimals : 0;
+  const quoteVolume = selected ? candleQuoteVolume(candles, selected.quoteDecimals) : 0;
 
   async function execute() {
     if (!selected || !preview || !walletClient) return;
-    if (!preview.allowed) { record("block", "Policy blocked", preview.checks.find((check) => check.status === "block")?.detail || "Risk limit exceeded"); return; }
-    record("pass", "Policy approved", `Score ${preview.score}/100; estimated fill ${((preview.estimatedFill || 0) * 100).toFixed(2)}%`);
+    setStatus("Refreshing market and wallet state before signature...");
+    let freshBook: UnifiedOrderBook;
+    let freshWallet: WalletSnapshot | undefined;
+    try {
+      freshBook = await getDreamBook(selected);
+      freshWallet = address ? await getDreamWalletSnapshot(selected, address) : undefined;
+    } catch (error: any) {
+      setStatus("Preflight failed. Refresh the market and try again.");
+      record("block", "Preflight failed", error?.message || "Could not refresh live execution state");
+      return;
+    }
+    setBook(freshBook);
+    if (freshWallet) setWalletSnapshot(freshWallet);
+    const freshPreview = executionPreview(selected, freshBook, amount, price, side, address ? freshWallet : undefined);
+    if (!freshPreview.allowed) { setStatus("Fresh market or wallet state failed policy checks."); record("block", "Policy blocked", freshPreview.checks.find((check) => check.status === "block")?.detail || "Risk limit exceeded"); return; }
+    record("pass", "Policy approved", `Fresh score ${freshPreview.score}/100; estimated fill ${((freshPreview.estimatedFill || 0) * 100).toFixed(2)}%`);
     record("info", "Wallet signature", "IOC order requested on Somnia Shannon");
     setStatus("Awaiting DreamDEX wallet signature...");
     try {
@@ -98,8 +131,9 @@ export default function Markets() {
       const order = await dreamdexExchange.createOrder(symbol, "limit", side, amount, price, { timeInForce: "IOC", slippage: 0.03 });
       const hash = order.txHash || "";
       setTxHash(hash); setStatus(`Order ${order.status}: ${order.filled} shares filled`);
-      record("pass", "Order confirmed", `${order.status}; ${order.filled} shares filled${hash ? `; ${hash.slice(0, 10)}...` : ""}`);
+      record("pass", "Order receipt confirmed", `${order.status}; ${order.filled} shares filled${hash ? `; ${hash.slice(0, 10)}...` : ""}`);
       window.localStorage.setItem("sluice:last-order", String(Date.now()));
+      window.dispatchEvent(new Event("sluice:order-confirmed"));
       setBook(await getDreamBook(selected));
       record("info", "Position sync", "Book refreshed; portfolio indexer will reflect the confirmed fill");
     } catch (error: any) {
@@ -113,7 +147,7 @@ export default function Markets() {
     <main className="grid dream-grid">
       <section className="card market-board"><div className="card-label">LIVE EVENT CONTRACTS</div><div className="market-list">{markets.map((market) => <button key={market.marketId} className={`market-row ${selected?.marketId === market.marketId ? "selected" : ""}`} onClick={() => setSelected(market)}><span><b>{market.asset}</b><small>{marketLabel(market)}</small></span><strong>{minutesLeft(market.expiry)}m</strong><i>{market.status}</i></button>)}{!markets.length && <p className="muted">No live markets returned yet.</p>}</div></section>
       <section className="card market-detail">{selected ? <><div className="card-label">LIVE MARKET INTELLIGENCE / {selected.asset}</div><h2>{marketLabel(selected)}</h2><p className="muted">Expires {formatExpiry(selected.expiry)} · {selected.interval || "rolling"} cadence · DreamDEX indexed</p><div className="probability"><span>UP probability</span><b>{Math.round(midpoint * 100)}%</b><small>midpoint from the live DreamDEX order book</small></div><div className="market-metrics"><div><span>Spread</span><b>{preview?.spreadBps == null ? "—" : `${preview.spreadBps.toFixed(0)} bps`}</b></div><div><span>24H volume</span><b>{compactNumber(quoteVolume)}</b></div><div><span>Trades</span><b>{compactNumber(Number(selected.tradeCount || 0))}</b></div><div><span>Visible depth</span><b>{preview ? preview.visibleDepth.toFixed(2) : "—"}</b></div></div><ProbabilityChart candles={candles} decimals={selected.quoteDecimals} /><div className="book"><div><label>BIDS / BUYERS</label>{(book?.bids || []).slice(0, 5).map(([p, q]) => <p key={`${p}-${q}`}><span>{(p * 100).toFixed(1)}%</span><b>{q.toFixed(2)}</b></p>)}</div><div><label>ASKS / SELLERS</label>{(book?.asks || []).slice(0, 5).map(([p, q]) => <p key={`${p}-${q}`}><span>{(p * 100).toFixed(1)}%</span><b>{q.toFixed(2)}</b></p>)}</div></div></> : <p className="muted">Select a market.</p>}</section>
-      <section className="card trade-ticket"><div className="card-label">EXECUTION POLICY / IOC ORDER</div><div className="segmented"><button className={side === "buy" ? "active" : ""} onClick={() => setSide("buy")}>Buy UP</button><button className={side === "sell" ? "active" : ""} onClick={() => setSide("sell")}>Sell UP</button></div><label>Shares<input type="number" min="0.001" max="25" step="0.001" value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><label>Limit probability<input type="number" min="0.001" max="0.999" step="0.001" value={price} onChange={(event) => setPrice(Number(event.target.value))} /></label>{preview && <><div className="execution-estimate"><div><span>Expected fill</span><b>{preview.estimatedFill == null ? "NOT FILLABLE" : `${(preview.estimatedFill * 100).toFixed(2)}%`}</b></div><div><span>Estimated cost</span><b>{preview.estimatedCost == null ? "—" : preview.estimatedCost.toFixed(3)}</b></div><div><span>Price impact</span><b>{preview.slippageBps == null ? "—" : `${preview.slippageBps.toFixed(0)} bps`}</b></div></div><div className={`decision ${preview.allowed ? "allow" : "block"}`}><strong>{preview.allowed ? "APPROVED" : "BLOCKED"}</strong><span>Risk score {preview.score}/100</span>{preview.checks.map((check) => <small className={`check-${check.status}`} key={check.label}><i>{check.status === "pass" ? "✓" : check.status === "warn" ? "!" : "×"}</i><span><b>{check.label}</b>{check.detail}</span></small>)}</div></>}<button className="primary big" disabled={!preview?.allowed || !walletClient} onClick={execute}>{!address ? "Connect wallet to execute" : !walletClient ? "Switch to Shannon" : "Sign & execute IOC"}</button>{txHash && <a className="text-link" href={`${DREAMDEX_EXPLORER_URL}/tx/${txHash}`} target="_blank" rel="noreferrer">View confirmed transaction ↗</a>}</section>
+      <section className="card trade-ticket"><div className="card-label">EXECUTION POLICY / IOC ORDER</div><div className="segmented"><button className={side === "buy" ? "active" : ""} onClick={() => setSide("buy")}>Buy UP</button><button className={side === "sell" ? "active" : ""} onClick={() => setSide("sell")}>Sell UP</button></div><label>Shares<input type="number" min="0.001" max="25" step="0.001" value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><label>Limit probability<input type="number" min="0.001" max="0.999" step="0.001" value={price} onChange={(event) => setPrice(Number(event.target.value))} /></label>{preview && <><div className="execution-estimate"><div><span>Expected fill</span><b>{preview.estimatedFill == null ? "NOT FILLABLE" : `${(preview.estimatedFill * 100).toFixed(2)}%`}</b></div><div><span>Estimated cost</span><b>{preview.estimatedCost == null ? "—" : preview.estimatedCost.toFixed(3)}</b></div><div><span>Price impact</span><b>{preview.slippageBps == null ? "—" : `${preview.slippageBps.toFixed(0)} bps`}</b></div></div><div className={`decision ${preview.allowed ? "allow" : "block"}`}><strong>{preview.allowed ? "APPROVED" : "BLOCKED"}</strong><span>Risk score {preview.score}/100</span>{preview.checks.map((check) => <small className={`check-${check.status}`} key={check.label}><i>{check.status === "pass" ? "✓" : check.status === "warn" ? "!" : "×"}</i><span><b>{check.label}</b>{check.detail}</span></small>)}</div></>}<p className="muted small approval-note">{side === "buy" ? "DreamDEX may request a maximum ERC-20 collateral allowance before this order." : "DreamDEX may request a one-time ERC-6909 outcome-token operator approval before this order."} Review the spender and permissions in your wallet.</p><button className="primary big" disabled={!preview?.allowed || !walletClient || walletSnapshot === null} onClick={execute}>{!address ? "Connect wallet to execute" : !walletClient ? "Switch to Shannon" : walletCheck === "loading" ? "Verifying wallet state" : walletCheck === "error" ? "Wallet checks unavailable" : "Sign & execute IOC"}</button>{txHash && <a className="text-link" href={`${DREAMDEX_EXPLORER_URL}/tx/${txHash}`} target="_blank" rel="noreferrer">View confirmed transaction ↗</a>}</section>
       <section className="card execution-trail"><div className="card-label">VERIFIABLE EXECUTION TRAIL</div><h2>From market snapshot to on-chain result</h2>{trail.length ? <div className="trail-list">{trail.map((item, index) => <div className={`trail-item ${item.state}`} key={`${item.at}-${index}`}><i /><span><b>{item.label}</b><small>{item.detail}</small></span><time>{item.at}</time></div>)}</div> : <p className="muted">Select a market to begin the live audit trail. Policy decisions and wallet outcomes appear here.</p>}</section>
     </main><footer className="foot"><Link to="/portfolio">Open portfolio</Link> · Market context is advisory; deterministic policy and Somnia transactions are authoritative.</footer>
   </div>;

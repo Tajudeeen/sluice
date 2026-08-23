@@ -1,241 +1,74 @@
-# Sluice
+# Sluice Markets
 
-**AI-native execution firewall for tokenized assets.**
+Sluice Markets is a DreamDEX Event Contracts trading terminal for Somnia Shannon. It combines live market discovery, order-book analytics, deterministic pre-trade checks, wallet-signed IOC execution, and a chain-sourced portfolio view.
 
-## Sluice Markets / DreamDEX
+Live app: https://tajudeeen.github.io/sluice/
 
-The current hackathon build extends Sluice into a policy-controlled prediction
-market terminal for DreamDEX Event Contracts on Somnia Shannon. Open `/markets`
-to discover live binary markets, inspect the Event Contract order book, preview
-the deterministic risk decision, and execute an IOC order through the official
-`@somnia-chain/markets-sdk`. Open `/portfolio` to inspect indexed positions.
+## Hackathon fit
 
-The AI layer is advisory. Hard limits on position size, tail pricing, and time
-to expiry are enforced in the frontend before a wallet signature is requested;
-DreamDEX remains the execution and settlement authority.
+- Consumer trading application: browse real binary Event Contracts and submit bounded IOC orders.
+- Market analytics: probability midpoint, spread, visible depth, hourly quote volume, and price history.
+- Event Contracts: lifecycle, outcome balances, fills, settlement, and transaction proofs come from DreamDEX.
 
-Hackathon configuration is controlled with `VITE_DREAMDEX_*` variables in
-`.env.example`. The default target is Shannon testnet (`50312`) and the live
-public indexer at `https://dev.smk.somnia.host/v1/graphql`.
+## What is verified before signing
 
-Sluice is an on-chain firewall for moving tokenized assets. Every transfer or
-redemption is **locked first, evaluated second, settled last**:
+The terminal refreshes the order book immediately before the wallet prompt and evaluates:
 
-1. A user calls `requestTransfer` / `requestRedeem` on the `SluiceGate`. Funds are
-   pulled into escrow and a `RequestCreated` event is emitted. The request is `PENDING`.
-2. An off-chain **attester agent** watches the gate, builds a `PoolSnapshot` from the
-   on-chain holder distribution, and runs a **deterministic risk engine** + an optional
-   **AI contextual classifier**.
-3. The agent signs an **EIP-712 attestation** (approve / block) with the authorized
-   attester key and submits it to the gate.
-4. The **gate is the final enforcement point**: it re-checks the attester signature,
-   replay, expiry, and request state before releasing or refunding. If the agent is
-   unavailable past `timeout`, anyone may call `timeoutRelease` to refund the user.
+- market is Trading and has at least three minutes to expiry;
+- order size (maximum 25 shares);
+- per-market exposure (maximum 25 projected shares);
+- total portfolio exposure (maximum 100 projected shares);
+- executable depth, limit price, spread, and price impact;
+- sell-side UP balance and buy-side collateral balance;
+- allowance and operator-approval disclosures.
 
-> The blockchain is the final authority. The agent can never move funds; it only
-> produces a signed attestation. There is no bypass: `SluiceAsset` rejects direct
-> ERC-20 transfers (only the gate may move tokens).
+These are browser-side guardrails. They improve user safety and make the decision visible, but they are not protocol-enforced controls. DreamDEX contracts remain the matching and settlement authority, and a user can bypass the UI by calling the protocol directly.
 
-`SLUSD` (Sluice Liquidity Unit) is a **synthetic demo token** and does not represent
-any real-world asset.
+## Trust boundaries
 
-## Architecture
-
-```
-            ┌──────────────┐
- user ─────▶│  SluiceGate  │  locks funds, emits RequestCreated
-            │  (firewall)  │
-            └──────┬───────┘
-                   │ RequestCreated (event)
-                   ▼
-            ┌──────────────┐   buildSnapshot()   ┌──────────────────────┐
-            │  SluiceAgent │◀────────────────────│ SluiceAsset (SLUSD)  │
-            │  (off-chain) │  holders()/supply()  │  gated: only gate     │
-            └──────┬───────┘                      │  moves tokens         │
-                   │ decide() → signTypedData
-                   ▼
-            ┌──────────────┐
-            │  SluiceGate  │  approve()/blockRequest() : verifies attester + expiry + replay
-            └──────────────┘
+```text
+Browser UI -> user wallet -> DreamDEX SDK/indexer -> Somnia RPC -> DreamDEX contracts
 ```
 
-- `contracts/src/SluiceGate.sol`: the firewall (lock → attest → settle/refund, timeout refund).
-- `contracts/src/SluiceAsset.sol`: synthetic gated asset (direct transfers rejected).
-- `contracts/src/AttesterRegistry.sol`: single authorized attester (upgrade path to N-of-M).
-- `contracts/src/AttackToken.sol`: test-only reentrancy probe.
-- `agent/src/`: deterministic risk engine (`risk/*`), AI classifier (`ai/`), decision
-  engine (`decision/`), and the runtime `listener.ts` that watches + settles.
-- `frontend/`: Vite + React + wagmi demo UI (read pool state, submit requests).
-
-## Risk model (transparent, auditable)
-
-The decision engine combines three weighted, BigInt-safe component scores:
-
-| Component    | Weight | What it measures                                            |
-|--------------|--------|-------------------------------------------------------------|
-| Concentration | 40     | Herfindahl-Hirschman Index (HHI) + largest-holder %         |
-| Liquidity     | 35     | post-redemption liquidity ratio (redemptions burn supply)  |
-| Anomaly       | 25     | sliding-window: large amount, burst, repeated requester     |
-
-Policy bands (`agent/src/config.ts`, all tunable in ONE place):
-
-- **Hard block (deterministic, LLM cannot override):** projected HHI ≥ 0.35, projected
-  largest holder ≥ 50%, post-redemption liquidity < 20%, or anomaly score ≥ 85.
-- **0–39 → APPROVE** (no AI needed).
-- **40–69 → REVIEW**: an AI contextual signal *may* tip a clearly-suspect pattern to
-  BLOCK, but cannot flip a deterministic block to approve.
-- **70–100 → BLOCK.**
-
-All thresholds live in `DEFAULT_CONFIG` so judges can inspect the policy directly.
+The indexer and public RPC are read dependencies. A wallet signs every order. The SDK waits for a transaction receipt before returning the order result; the portfolio page reads indexed positions, open orders, and fills.
 
 ## Quick start
 
 ```bash
 npm install
-
-# 1) Start a local Hardhat node
-npm run node                      # http://127.0.0.1:8545
-
-# 2) Deploy registry + asset + gate, seed the demo distribution
-npm run deploy:local             # writes artifacts/deployment.localhost.json
-
-# 3) Run the attester agent (needs ATTESTER_PRIVATE_KEY + gate/asset addresses)
-#    Copy the VITE_* + ATTESTER_* lines from the deploy output into .env, then:
-npm run agent
-
-# 4) (optional) demo frontend
-npm run frontend                 # http://localhost:5173
+npm run frontend
+# open http://localhost:5173/sluice/
 ```
 
-Set `SLUICE_GATE_ADDRESS`, `SLUICE_ASSET_ADDRESS`, and `ATTESTER_PRIVATE_KEY` for the
-agent (see `.env.example`). The agent reads `.env` via `dotenv`. To exercise the AI
-review band, set `GROQ_API_KEY` (free-tier friendly) or `ANTHROPIC_API_KEY`.
-Groq is preferred when both are present. Without either key the system runs a
-deterministic fallback and labels itself `INSUFFICIENT_DATA` honestly.
+The frontend defaults to DreamDEX's public Shannon endpoints. Copy `.env.example` to `frontend/.env` only when overriding those endpoints.
 
-## Local end-to-end demo (the real loop)
-
-Everything below is a REAL on-chain transaction on a local Hardhat node: no mocks.
+## Verification
 
 ```bash
-# 1) start a local node
-npx hardhat node --hostname 127.0.0.1 --port 8545
-# 2) in another shell: deploy + seed a healthy demo pool, print .env lines
-npm run deploy:local
-# 3) run the attester agent (paste the ATTESTER_*/SLUICE_* lines from step 2 into .env)
-npm run agent
-# 4) drive the two required flows + read back on-chain state
-npx tsx scripts/demo-local.ts && npx tsx scripts/check-status.ts
-# 5) (optional) open the UI: connect a wallet, use the faucet, try the live forms
-npm run frontend   # http://localhost:5173
+npm run verify:submission
 ```
 
-### Demo math (why the attack actually breaches)
-- Base pool: 1,000,000 SLUSD across 6 holders, largest = **35%** (HHI ≈ 0.21, healthy).
-- Synthetic demo-attacker (Hardhat account #1, no real funds) is seeded **900,000 SLUSD**.
-- Concentration attack: the attacker transfers **900,000 SLUSD** into the largest holder
-  (a fixed, predefined target: never an arbitrary address). After: that holder owns
-  1,250k of 1.9M = **65.8%** → deterministic hard-block (`LARGEST_HOLDER_LIMIT`, ≥50%).
-- NORMAL flow: a small transfer to a fresh address keeps the pool healthy → **APPROVE**.
-
-Verified run (see `docs/PROOF-local-e2e.md`): req #1 APPROVE (score 13), req #2 BLOCK
-(hard block, projected top holder 65.8% ≥ 50%). Settlement/refund tx hashes are in the proof file.
-
-## Tests
+Individual checks:
 
 ```bash
-npm test            # Hardhat contract tests (24): firewall, gating, reentrancy, timeout
-npm run test:agent  # Vitest agent tests (16): HHI/liquidity/anomaly math + decision bands
-```
-
-## Deploy to Somnia Shannon (chainId 50312)
-
-```bash
-# set SOMNIA_RPC_URL / DEPLOYER_PRIVATE_KEY / ATTESTER_PRIVATE_KEY in .env
-# IMPORTANT: the deployer key MUST hold STT for gas: the script aborts cleanly
-# if its balance is 0 (it will NOT hang on an unmineable tx).
-npm run deploy:somnia
-npm run verify:somnia
-```
-
-## Live demo mirror (no mainnet gas needed)
-
-The build link you hand reviewers should show a **working firewall**, not an empty
-shell. If you need a separate legacy proof, deploy the exact same contracts to
-**Sepolia** (free test ETH) and bake those addresses into the frontend build:
-
-```bash
-# 1) fund a deployer wallet with Sepolia ETH (faucet: sepoliafaucet.com), then:
-export DEPLOYER_PRIVATE_KEY=0x... ATTESTER_PRIVATE_KEY=0x...
-npm run deploy:sepolia                 # writes artifacts/deployment.sepolia.json + artifacts/deployment.frontend.env
-
-# 2) build the hosted frontend from that deploy:
-cp artifacts/deployment.frontend.env frontend/.env
+npm run frontend:typecheck
+npm run frontend:test
+npm run worker:typecheck
+npm run test:agent
+npm test
 npm run frontend:build -- --base=/sluice/
-
-# 3) publish to GitHub Pages (see scripts/publish-pages.sh)
-bash scripts/publish-pages.sh
 ```
 
-The hosted build now shows the live gate + asset, the attester agent settles
-requests in real time, and the concentration-attack simulator runs on-chain.
-The hackathon-facing product uses DreamDEX Event Contracts on Somnia Shannon;
-the legacy escrow deployment remains isolated from the market terminal.
+## Deployment
 
-## Hosted build
+Pushes to `main` run the frontend typecheck, frontend tests, worker typecheck, agent tests, contract tests, and production Pages build before publishing `gh-pages`.
 
-The frontend is a static SPA. It reads `VITE_*` addresses at build time, so a
-build without `VITE_GATE_ADDRESS`/`VITE_ASSET_ADDRESS` shows an intentional
-**Demo mode** banner (the firewall is proven locally; deployment is gated on the
-mainnet-gas token) instead of a broken state. Publish with `scripts/publish-pages.sh`
-to a `gh-pages` branch and enable GitHub Pages (root) in repo Settings.
+## Repository layout
 
-## Hackathon build
-
-The current product is designed for DreamDEX Event Contracts on Somnia Shannon:
-
-- Frontend: https://tajudeeen.github.io/sluice/
-- Chain: `50312` (Somnia Shannon)
-- RPC: `https://dream-rpc.somnia.network`
-- Explorer: `https://shannon-explorer.somnia.network`
-- DreamDEX indexer: `https://dev.smk.somnia.host/v1/graphql`
-
-Demo flow: open `/markets`, connect a wallet on Somnia Shannon, select a live
-Event Contract, inspect the order book, preview the deterministic policy result,
-and execute a small IOC order. Open `/portfolio` to inspect indexed positions.
-
-### Host the agent
-
-The root `Dockerfile` packages the agent for an always-on container host. Set
-`SLUICE_RPC_URL`, `SLUICE_GATE_ADDRESS`, `SLUICE_ASSET_ADDRESS`,
-`ATTESTER_PRIVATE_KEY`, `SLUICE_POLL=1`, and `GROQ_API_KEY` as host secrets.
-`ANTHROPIC_API_KEY` remains an optional fallback. Expose port `8787`; the health check is `GET /health`. Never put
-the attester or AI key in the frontend or repository.
-
-For Render, `render.yaml` is included for the optional legacy attester service.
-Create a Blueprint from this repository,
-enter `ATTESTER_PRIVATE_KEY` and `GROQ_API_KEY` as secret values, then set
-`VITE_AGENT_HEALTH_URL` to the resulting Render service URL and rebuild the
-frontend. The DreamDEX market terminal does not require the optional legacy
-attester service.
-
-### Cloudflare Worker (free-plan option)
-
-The repository also includes a Cloudflare-compatible Worker in `worker/`.
-It exposes public `/health` and one-shot `/demo/attack` routes, protected manual
-`/process/*` routes, and a one-minute scheduled settlement trigger.
-Follow [`docs/cloudflare-worker.md`](docs/cloudflare-worker.md) for the exact setup.
-Cloudflare secrets must be named `GROQ_API_KEY` and `ATTESTER_PRIVATE_KEY` exactly;
-they are never exposed to the frontend.
-
-Security invariants
-
-- Off-chain agent is advisory enforcement, never custody. The gate re-verifies everything.
-- `timeoutRelease` guarantees users are refunded if the agent is offline.
-- Replay-guarded attestations + `nonReentrant` settlement + gated asset (no direct bypass).
+- `frontend/`: submitted DreamDEX/Somnia React application.
+- `docs/LEGACY-FIREWALL.md`: archived reference for the earlier escrow demonstration.
+- `contracts/`, `agent/`, `worker/`: legacy local proof and optional services; not required by the DreamDEX market terminal.
 
 ## Disclaimer
 
-Sluice is a demo. `SLUSD` is synthetic and not a real-world asset. The single-attester
-model is v1 (owner-controlled registry): the upgrade path to N-of-M attester quorum is
-isolated by design.
+This is a hackathon demo on Somnia Shannon testnet, not a production trading system. It does not provide custody, profit, compliance, or investment claims. Review every wallet prompt and contract spender before signing.

@@ -734,6 +734,7 @@ button.danger:hover { background: var(--ink); box-shadow: 4px 4px 0 var(--bad); 
 .activity-row b, .activity-row strong { font: 800 12px/1.25 var(--mono); }
 .activity-row small, .activity-row em { overflow: hidden; color: var(--slate); font: 600 10px/1.4 var(--mono); font-style: normal; text-overflow: ellipsis; }
 .activity-row a { width: max-content; color: var(--signal-dark); font: 700 10px/1 var(--mono); text-decoration: underline; }
+.approval-note { margin: 14px 0; padding: 10px 12px; border-left: 3px solid var(--warn); background: var(--paper-deep); }
 .state-pill { width: max-content; padding: 6px 8px; border: 1px solid currentColor; font: 700 9px/1 var(--mono); font-style: normal; }
 .state-pill.live { color: var(--good); }
 .state-pill.settled { color: var(--signal-dark); }

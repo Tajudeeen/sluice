@@ -28,6 +28,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Typecheck DreamDEX frontend
+        run: npm run frontend:typecheck
+      - name: Test DreamDEX frontend
+        run: npm run frontend:test
+      - name: Typecheck worker
+        run: npm run worker:typecheck
+      - name: Test agent
+        run: npm run test:agent
+      - name: Test contracts
+        run: npm test
       - name: Build DreamDEX frontend
         run: npm run frontend:build -- --base=/sluice/
 

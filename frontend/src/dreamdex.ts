@@ -1,5 +1,6 @@
 import { SomniaMarkets, SOMNIA_TESTNET_ADDRESSES, type BinaryMarket, type UnifiedOrderBook, type Candle } from "@somnia-chain/markets-sdk";
 import { somniaShannon } from "@somnia-chain/markets-sdk/chains";
+import type { Address, Hex } from "viem";
 
 export const DREAMDEX_INDEXER_URL = (import.meta.env.VITE_DREAMDEX_INDEXER_URL as string) || "https://dev.smk.somnia.host/v1/graphql";
 export const DREAMDEX_RPC_URL = (import.meta.env.VITE_DREAMDEX_RPC_URL as string) || "https://dream-rpc.somnia.network";
@@ -27,6 +28,15 @@ export type ExecutionPreview = {
   spreadBps: number | null;
   visibleDepth: number;
 };
+export type WalletSnapshot = {
+  marketShares: number;
+  totalPortfolioShares: number;
+  sellBalance: number;
+  collateralBalance: number;
+  collateralAllowance: number;
+  collateralSymbol: string;
+  readAt: number;
+};
 
 export async function listDreamMarkets(): Promise<DreamMarket[]> {
   const rows = await dreamdexExchange.client.listLiveBinaryMarkets({ limit: 30, orderBy: "closingSoon" });
@@ -48,6 +58,42 @@ export async function getDreamBook(market: DreamMarket): Promise<UnifiedOrderBoo
 
 export async function getDreamCandles(market: DreamMarket, limit = 24): Promise<Candle[]> {
   return dreamdexExchange.client.getCandles(market.poolAddress, 3600, { limit });
+}
+
+export function candleQuoteVolume(candles: Candle[], decimals: number): number {
+  return candles.reduce((sum, candle) => sum + Number(candle.quoteVolume) / 10 ** decimals, 0);
+}
+
+export async function getDreamWalletSnapshot(market: DreamMarket, account: string): Promise<WalletSnapshot> {
+  const owner = account as Address;
+  const [onchain, portfolio] = await Promise.all([
+    dreamdexExchange.client.getMarketOnchain(market.marketId as Hex),
+    dreamdexExchange.client.getPortfolio(account, { ordersLimit: 0, tradesLimit: 0 }),
+  ]);
+  const [collateralBalanceRaw, collateralAllowanceRaw, yesBalanceRaw, noBalanceRaw, metadata] = await Promise.all([
+    dreamdexExchange.client.getErc20Balance(onchain.collateral, owner),
+    dreamdexExchange.client.getErc20Allowance(onchain.collateral, owner, onchain.pool),
+    dreamdexExchange.client.getOutcomeBalance({ outcomeToken: onchain.outcomeToken, account: owner, id: onchain.yesId }),
+    dreamdexExchange.client.getOutcomeBalance({ outcomeToken: onchain.outcomeToken, account: owner, id: onchain.noId }),
+    dreamdexExchange.client.getErc20Metadata(onchain.collateral),
+  ]);
+  const scale = 10 ** onchain.decimals;
+  const marketShares = Number(yesBalanceRaw + noBalanceRaw) / scale;
+  const indexedMarketShares = portfolio.positions
+    .filter((position) => position.market.id.toLowerCase() === market.marketId.toLowerCase())
+    .reduce((sum, position) => sum + Number(position.balance) / 10 ** position.market.quoteDecimals, 0);
+  const indexedTotal = portfolio.positions.reduce((sum, position) => sum + Number(position.balance) / 10 ** position.market.quoteDecimals, 0);
+  const collateralBalance = Number(collateralBalanceRaw) / 10 ** metadata.decimals;
+  const collateralAllowance = Number(collateralAllowanceRaw) / 10 ** metadata.decimals;
+  return {
+    marketShares,
+    totalPortfolioShares: Math.max(0, indexedTotal - indexedMarketShares + marketShares),
+    sellBalance: Number(yesBalanceRaw) / scale,
+    collateralBalance,
+    collateralAllowance,
+    collateralSymbol: metadata.symbol,
+    readAt: Date.now(),
+  };
 }
 
 export function marketLabel(market: DreamMarket): string {
@@ -77,7 +123,7 @@ export function probabilityFromBook(book: UnifiedOrderBook): number {
 
 function formatPct(value: number): string { return `${(value * 100).toFixed(2)}%`; }
 
-export function executionPreview(market: DreamMarket, book: UnifiedOrderBook | null, amount: number, requestedPrice: number, side: "buy" | "sell"): ExecutionPreview {
+export function executionPreview(market: DreamMarket, book: UnifiedOrderBook | null, amount: number, requestedPrice: number, side: "buy" | "sell", wallet?: WalletSnapshot | null): ExecutionPreview {
   const checks: RiskCheck[] = [];
   let score = 0;
   const levels = side === "buy" ? (book?.asks || []) : (book?.bids || []);
@@ -92,10 +138,11 @@ export function executionPreview(market: DreamMarket, book: UnifiedOrderBook | n
     const executable = side === "buy" ? levelPrice <= requestedPrice : levelPrice >= requestedPrice;
     if (!executable) continue;
     visibleDepth += quantity;
-    const take = Math.min(remaining, quantity);
-    quote += take * levelPrice;
-    remaining -= take;
-    if (remaining <= 0) break;
+    if (remaining > 0) {
+      const take = Math.min(remaining, quantity);
+      quote += take * levelPrice;
+      remaining -= take;
+    }
   }
   const estimatedFill = amount > 0 && remaining <= 1e-9 ? quote / amount : null;
   const estimatedCost = estimatedFill == null ? null : estimatedFill * amount;
@@ -103,6 +150,9 @@ export function executionPreview(market: DreamMarket, book: UnifiedOrderBook | n
 
   if (!market.live || market.status !== "Trading") { score += 100; checks.push({ label: "Market status", status: "block", detail: `Market is ${market.status}, not Trading` }); }
   else checks.push({ label: "Market status", status: "pass", detail: "Trading on Somnia Shannon" });
+  const bookAge = book?.timestamp == null ? Infinity : Date.now() - book.timestamp;
+  if (!book || !Number.isFinite(bookAge) || bookAge > 20_000) { score += 100; checks.push({ label: "Book freshness", status: "block", detail: "Order book is older than 20 seconds or has no timestamp" }); }
+  else checks.push({ label: "Book freshness", status: "pass", detail: `Snapshot age ${Math.max(0, Math.round(bookAge / 1000))}s` });
   if (amount > 25 || amount <= 0) { score += 55; checks.push({ label: "Position size", status: "block", detail: amount > 25 ? "Hard limit is 25 shares" : "Enter a positive share amount" }); }
   else checks.push({ label: "Position size", status: "pass", detail: `${amount.toFixed(3)} shares within 25-share limit` });
   if (bestPrice == null || levels.length === 0) { score += 100; checks.push({ label: "Book liquidity", status: "block", detail: "No executable liquidity on the selected side" }); }
@@ -117,5 +167,21 @@ export function executionPreview(market: DreamMarket, book: UnifiedOrderBook | n
   else checks.push({ label: "Time to expiry", status: "pass", detail: `${minutesLeft(market.expiry)} minutes remaining` });
   if (requestedPrice <= 0.08 || requestedPrice >= 0.92) { score += 20; checks.push({ label: "Tail pricing", status: "warn", detail: "Extreme probabilities require review" }); }
   else checks.push({ label: "Tail pricing", status: "pass", detail: "Probability is inside the review band" });
+  if (wallet === null) { score += 100; checks.push({ label: "Wallet feasibility", status: "block", detail: "Wallet balances could not be verified" }); }
+  else if (wallet) {
+    const projectedMarket = side === "buy" ? wallet.marketShares + amount : Math.max(0, wallet.marketShares - amount);
+    const projectedGlobal = side === "buy" ? wallet.totalPortfolioShares + amount : Math.max(0, wallet.totalPortfolioShares - amount);
+    if (side === "buy" && projectedMarket > 25) { score += 55; checks.push({ label: "Market exposure", status: "block", detail: `Projected ${projectedMarket.toFixed(3)} shares exceeds the 25-share market limit` }); }
+    else checks.push({ label: "Market exposure", status: "pass", detail: `Projected ${projectedMarket.toFixed(3)} shares in this market` });
+    if (side === "buy" && projectedGlobal > 100) { score += 55; checks.push({ label: "Portfolio exposure", status: "block", detail: `Projected ${projectedGlobal.toFixed(3)} shares exceeds the 100-share portfolio limit` }); }
+    else checks.push({ label: "Portfolio exposure", status: "pass", detail: `Projected ${projectedGlobal.toFixed(3)} shares across markets` });
+    if (side === "sell" && wallet.sellBalance + 1e-9 < amount) { score += 100; checks.push({ label: "UP balance", status: "block", detail: `Only ${wallet.sellBalance.toFixed(3)} UP shares available` }); }
+    else if (side === "sell") checks.push({ label: "UP balance", status: "pass", detail: `${wallet.sellBalance.toFixed(3)} UP shares available` });
+    if (side === "buy" && estimatedCost != null && wallet.collateralBalance + 1e-9 < estimatedCost) { score += 100; checks.push({ label: "Collateral", status: "block", detail: `${wallet.collateralBalance.toFixed(3)} ${wallet.collateralSymbol} available; ${estimatedCost.toFixed(3)} required` }); }
+    else if (side === "buy" && estimatedCost != null) checks.push({ label: "Collateral", status: "pass", detail: `${wallet.collateralBalance.toFixed(3)} ${wallet.collateralSymbol} available` });
+    if (side === "buy" && estimatedCost != null && wallet.collateralAllowance + 1e-9 < estimatedCost) checks.push({ label: "Token approval", status: "warn", detail: `DreamDEX will request a maximum collateral approval before this order` });
+    else if (side === "sell") checks.push({ label: "Operator approval", status: "warn", detail: "DreamDEX may request a one-time pool operator approval for outcome tokens" });
+    else checks.push({ label: "Token approval", status: "pass", detail: "Existing collateral allowance covers this order" });
+  }
   return { allowed: score < 70 && checks.every((check) => check.status !== "block"), score: Math.min(100, score), checks, bestPrice, estimatedFill, estimatedCost, slippageBps, spreadBps, visibleDepth };
 }
