@@ -1,7 +1,8 @@
-import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from "wagmi";
+import { useState } from "react";
+import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain, useWalletClient } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { shortAddr } from "../sluice";
-import { DREAMDEX_CHAIN_ID, DREAMDEX_EXPLORER_URL, DREAMDEX_RPC_URL } from "../dreamdex";
+import { DREAMDEX_CHAIN_ID, DREAMDEX_EXPLORER_URL, DREAMDEX_RPC_URL, dreamdexExchange } from "../dreamdex";
 
 // Reusable connect/disconnect control. Used in the site nav on every page.
 export default function WalletButton() {
@@ -9,7 +10,9 @@ export default function WalletButton() {
   const { connectAsync } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChainAsync } = useSwitchChain();
+  const { data: walletClient } = useWalletClient();
   const walletChainId = useChainId();
+  const [faucetState, setFaucetState] = useState<"idle" | "loading" | "done" | "error">("idle");
 
   async function ensureDreamdexChain() {
     const provider = (window as any).ethereum;
@@ -35,7 +38,10 @@ export default function WalletButton() {
     try {
       if (switchChainAsync) await switchChainAsync({ chainId: DREAMDEX_CHAIN_ID });
       else await ensureDreamdexChain();
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.code === 4902) {
+        try { await ensureDreamdexChain(); return; } catch (addError) { console.error("Somnia network add failed", addError); }
+      }
       console.error("Wallet network switch failed", err);
     }
   }
@@ -45,6 +51,20 @@ export default function WalletButton() {
       await switchChainAsync({ chainId });
     } catch (err) {
       console.error("Wallet network switch failed", err);
+    }
+  }
+
+  async function claimTestCollateral() {
+    if (!walletClient || walletChainId !== DREAMDEX_CHAIN_ID) return;
+    setFaucetState("loading");
+    try {
+      dreamdexExchange.setSigner({ walletClient });
+      const receipt = await dreamdexExchange.trader.faucet({ amount: 1_000n * 1_000_000n });
+      setFaucetState("done");
+      window.dispatchEvent(new CustomEvent("sluice:collateral-claimed", { detail: { hash: receipt.hash } }));
+    } catch (err) {
+      setFaucetState("error");
+      console.error("tUSDC faucet request failed", err);
     }
   }
 
@@ -60,6 +80,9 @@ export default function WalletButton() {
           <option value={1}>Ethereum</option>
         </select>
         {isWrongNetwork && <button className="ghost network-warning" onClick={switchWalletNetwork}>Switch to Shannon</button>}
+        {!isWrongNetwork && <button className="ghost faucet-claim" onClick={claimTestCollateral} disabled={!walletClient || faucetState === "loading"} title="Mint test collateral from the Shannon tUSDC faucet">
+          {faucetState === "loading" ? "Claiming..." : faucetState === "done" ? "1,000 tUSDC claimed" : faucetState === "error" ? "Retry tUSDC claim" : "Claim 1,000 tUSDC"}
+        </button>}
         <button className="ghost" onClick={() => disconnect()}>
           Disconnect
         </button>

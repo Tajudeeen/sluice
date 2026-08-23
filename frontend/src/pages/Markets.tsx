@@ -96,6 +96,15 @@ export default function Markets() {
   }, [selected?.marketId, address]);
 
   useEffect(() => {
+    const refreshAfterClaim = () => {
+      if (!selected || !address) return;
+      getDreamWalletSnapshot(selected, address).then((snapshot) => { setWalletSnapshot(snapshot); setWalletCheck("ready"); }).catch(() => undefined);
+    };
+    window.addEventListener("sluice:collateral-claimed", refreshAfterClaim);
+    return () => window.removeEventListener("sluice:collateral-claimed", refreshAfterClaim);
+  }, [selected?.marketId, address]);
+
+  useEffect(() => {
     if (!book) return;
     const top = side === "buy" ? book.asks[0]?.[0] : book.bids[0]?.[0];
     if (top != null) setPrice(top);
