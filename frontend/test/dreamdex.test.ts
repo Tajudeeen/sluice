@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Candle, UnifiedOrderBook } from "@somnia-chain/markets-sdk";
 import type { DreamMarket, WalletSnapshot } from "../src/dreamdex";
-import { candleQuoteVolume, executionPreview, marketCategory, safeOrderSize } from "../src/dreamdex";
+import { candleQuoteVolume, executionPreview, marketCategory, predictionOutcome, safeOrderSize } from "../src/dreamdex";
 
 const market = {
   marketId: "0x0000000000000000000000000000000000000000000000000000000000000001",
@@ -75,6 +75,15 @@ describe("marketCategory", () => {
     expect(marketCategory({ asset: "BTC", question: "Will BTC close above its open?" })).toBe("CRYPTO");
     expect(marketCategory({ asset: "NBA", question: "Will the Lakers win tonight?" })).toBe("SPORTS");
     expect(marketCategory({ asset: "USA", question: "Who wins the presidential election?" })).toBe("POLITICS");
+  });
+});
+
+describe("predictionOutcome", () => {
+  it("uses the indexed winner even when DreamDEX labels the market Finalized", () => {
+    expect(predictionOutcome({ voided: false, winningOutcome: 0 }, 0)).toEqual({ label: "WON", tone: "win" });
+    expect(predictionOutcome({ voided: false, winningOutcome: 1 }, 0)).toEqual({ label: "LOST", tone: "loss" });
+    expect(predictionOutcome({ voided: false, winningOutcome: null }, 0)).toEqual({ label: "PENDING", tone: "pending" });
+    expect(predictionOutcome({ voided: true, winningOutcome: null }, 0)).toEqual({ label: "VOID / REFUNDABLE", tone: "void" });
   });
 });
 

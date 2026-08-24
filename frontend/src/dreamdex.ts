@@ -40,6 +40,14 @@ export type WalletSnapshot = {
   collateralSymbol: string;
   readAt: number;
 };
+export type PredictionOutcome = { label: "PENDING" | "WON" | "LOST" | "VOID / REFUNDABLE"; tone: "pending" | "win" | "loss" | "void" };
+
+/** Interpret DreamDEX settlement fields without assuming one exact finalized status label. */
+export function predictionOutcome(market: { voided: boolean; winningOutcome?: number | null }, outcomeIndex: number): PredictionOutcome {
+  if (market.voided) return { label: "VOID / REFUNDABLE", tone: "void" };
+  if (market.winningOutcome == null) return { label: "PENDING", tone: "pending" };
+  return outcomeIndex === market.winningOutcome ? { label: "WON", tone: "win" } : { label: "LOST", tone: "loss" };
+}
 
 export async function listDreamMarkets(): Promise<DreamMarket[]> {
   const rows = await dreamdexExchange.client.listLiveBinaryMarkets({ limit: 100, orderBy: "closingSoon" });
