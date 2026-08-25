@@ -41,7 +41,10 @@ async function deployFixture() {
 // Build a valid EIP-712 attestation signed by `attester`.
 async function makeAttestation(gate, attester, requestId, decision, overrides) {
   overrides = overrides || {};
-  const now = Math.floor(Date.now() / 1000);
+  // Use the chain clock that SluiceGate validates against. Wall-clock time can
+  // differ from Hardhat's block timestamp and make expiry tests flaky.
+  const latestBlock = await gate.runner.provider.getBlock("latest");
+  const now = Number(latestBlock.timestamp);
   const ts = overrides.timestamp != null ? overrides.timestamp : now;
   const exp = overrides.expiry != null ? overrides.expiry : now + 600;
   const net = await gate.runner.provider.getNetwork();
