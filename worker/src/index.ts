@@ -12,6 +12,7 @@ export interface Env {
   SLUICE_ASSET_ADDRESS: string;
   ATTESTER_PRIVATE_KEY: string;
   PROCESS_TOKEN?: string;
+  DEMO_MODE_ENABLED?: string;
   DEMO_ATTACKER_PRIVATE_KEY?: string;
   DEMO_ATTACK_TARGET?: string;
   DEMO_ATTACK_AMOUNT?: string;
@@ -36,10 +37,12 @@ const ASSET_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
 ];
 const PENDING = 0;
-const DEFAULT_DEMO_ATTACK_AMOUNT = "2200000";
+const DEFAULT_DEMO_ATTACK_AMOUNT = "900000";
 const LAST_DECISION_CACHE_KEY = "https://sluice.internal/last-decision";
 const PROCESS_CURSOR_CACHE_KEY = "https://sluice.internal/process-cursor";
 const PROCESS_BATCH_SIZE = 1;
+type HistoryEntry = { amount: bigint; timestamp: number; requester: string };
+const HISTORY_STORAGE_KEY = "risk-history";
 
 function workerCache(): Cache {
   return (caches as unknown as { default: Cache }).default;
@@ -82,7 +85,7 @@ async function snapshot(asset: ethers.Contract, gate: ethers.Contract, escrowOwn
   return { totalSupply: totalSupply as bigint, holders };
 }
 
-async function settle(id: number, env: Env): Promise<Record<string, unknown>> {
+async function settle(id: number, env: Env, history: HistoryEntry[], onEvaluated?: (entry: HistoryEntry) => Promise<void>): Promise<Record<string, unknown>> {
   configureAi(env);
   const { provider, wallet, gate, asset } = clients(env);
   const raw = await gate.getRequest(id);
@@ -91,8 +94,8 @@ async function settle(id: number, env: Env): Promise<Record<string, unknown>> {
   const tx: ProposedTx = { type: req.requestType === 1 ? "REDEMPTION" : "TRANSFER", requester: req.requester, recipient: req.recipient, amount: req.amount };
   const snap = await snapshot(asset, gate, req.requester);
   const now = Math.floor(Date.now() / 1000);
-  const decision = await decide(snap, tx, [], now, DEFAULT_CONFIG);
-  const risk = assessRisk(snap, tx, [], now, DEFAULT_CONFIG);
+  const decision = await decide(snap, tx, history, now, DEFAULT_CONFIG);
+  const risk = assessRisk(snap, tx, history, now, DEFAULT_CONFIG);
   const aiClassification = decision.aiClassification ?? AI_CLASS.INSUFFICIENT_DATA;
   const aiConfidence = decision.aiConfidence ?? 0;
   const domain = { name: "SluiceGate", version: "1", chainId: (await provider.getNetwork()).chainId, verifyingContract: env.SLUICE_GATE_ADDRESS };
@@ -114,12 +117,13 @@ async function settle(id: number, env: Env): Promise<Record<string, unknown>> {
   const method = decision.decision === "APPROVE" ? "approve" : "blockRequest";
   const txResponse = await gate[method](id, att);
   const receipt = await txResponse.wait();
+  await onEvaluated?.({ amount: req.amount, timestamp: now, requester: req.requester });
   const decisionEvidence = { id, decision: decision.decision, deterministicScore: risk.deterministicScore, hardBlock: risk.hardBlock, primaryReason: decision.primaryReason, aiParticipated: decision.aiParticipated, aiClassification, aiConfidence, aiReason: decision.aiReason, aiProvider: configuredAiProvider(), at: new Date().toISOString(), txHash: receipt.hash };
   await workerCache().put(LAST_DECISION_CACHE_KEY, new Response(JSON.stringify(decisionEvidence), { headers: { "content-type": "application/json", "cache-control": "public, max-age=86400" } }));
   return { status: decision.decision, ...decisionEvidence };
 }
 
-async function processPending(env: Env, requestedId?: number): Promise<Record<string, unknown>[]> {
+async function processPending(env: Env, requestedId: number | undefined, history: HistoryEntry[], onEvaluated?: (entry: HistoryEntry) => Promise<void>): Promise<Record<string, unknown>[]> {
   const { gate } = clients(env);
   const ids: number[] = requestedId !== undefined ? [requestedId] : [];
   if (requestedId === undefined) {
@@ -136,7 +140,7 @@ async function processPending(env: Env, requestedId?: number): Promise<Record<st
   }
   const results: Record<string, unknown>[] = [];
   for (const id of ids) {
-    try { results.push(await settle(id, env)); } catch (error) { results.push({ id, status: "error", error: error instanceof Error ? error.message : String(error) }); }
+    try { results.push(await settle(id, env, history, onEvaluated)); } catch (error) { results.push({ id, status: "error", error: error instanceof Error ? error.message : String(error) }); }
   }
   return results;
 }
@@ -156,7 +160,7 @@ async function authorized(request: Request, env: Env): Promise<boolean> {
   return difference === 0;
 }
 
-async function runDemoAttack(env: Env): Promise<Record<string, unknown>> {
+async function runDemoAttack(env: Env, history: HistoryEntry[], onEvaluated?: (entry: HistoryEntry) => Promise<void>): Promise<Record<string, unknown>> {
   if (!env.DEMO_ATTACKER_PRIVATE_KEY) throw new Error("Demo attacker is not configured");
   const provider = new ethers.JsonRpcProvider(env.SLUICE_RPC_URL, undefined, { staticNetwork: true });
   const wallet = new ethers.Wallet(env.DEMO_ATTACKER_PRIVATE_KEY, provider);
@@ -210,12 +214,18 @@ async function runDemoAttack(env: Env): Promise<Record<string, unknown>> {
   const request = await gate.requestTransfer(target, amount);
   const receipt = await request.wait();
   const requestId = Number(await gate.requestCounter());
-  const results = await processPending(env, requestId);
+  const results = await processPending(env, requestId, history, onEvaluated);
   return { status: "submitted", attacker, target, amount: amountText, requestId, approvalHash: approval.hash, requestHash: receipt.hash, results };
 }
 
 export class SettlementCoordinator extends DurableObject<Env> {
   private queue: Promise<unknown> = Promise.resolve();
+  private history?: HistoryEntry[];
+
+  private async loadHistory(): Promise<HistoryEntry[]> {
+    if (!this.history) this.history = (await this.ctx.storage.get<HistoryEntry[]>(HISTORY_STORAGE_KEY)) ?? [];
+    return this.history;
+  }
 
   private enqueue<T>(work: () => Promise<T>): Promise<T> {
     const run = this.queue.then(work);
@@ -224,11 +234,27 @@ export class SettlementCoordinator extends DurableObject<Env> {
   }
 
   process(requestedId?: number): Promise<Record<string, unknown>[]> {
-    return this.enqueue(() => processPending(this.env, requestedId));
+    return this.enqueue(async () => {
+      const history = await this.loadHistory();
+      const record = async (entry: HistoryEntry) => {
+        history.push(entry);
+        while (history.length > DEFAULT_CONFIG.anomaly.windowSize) history.shift();
+        await this.ctx.storage.put(HISTORY_STORAGE_KEY, history);
+      };
+      return processPending(this.env, requestedId, history, record);
+    });
   }
 
   demoAttack(): Promise<Record<string, unknown>> {
-    return this.enqueue(() => runDemoAttack(this.env));
+    return this.enqueue(async () => {
+      const history = await this.loadHistory();
+      const record = async (entry: HistoryEntry) => {
+        history.push(entry);
+        while (history.length > DEFAULT_CONFIG.anomaly.windowSize) history.shift();
+        await this.ctx.storage.put(HISTORY_STORAGE_KEY, history);
+      };
+      return runDemoAttack(this.env, history, record);
+    });
   }
 }
 
@@ -261,7 +287,11 @@ export default {
           lastDecision: decisionEvidence,
         });
       }
-      if (request.method === "POST" && url.pathname === "/demo/attack") return json(await coordinator(env).demoAttack());
+      if (request.method === "POST" && url.pathname === "/demo/attack") {
+        if (env.DEMO_MODE_ENABLED !== "true") return json({ error: "not found" }, 404);
+        if (!await authorized(request, env)) return json({ error: "unauthorized" }, 401);
+        return json(await coordinator(env).demoAttack());
+      }
       if (request.method === "POST" && url.pathname === "/process/latest") {
         if (!await authorized(request, env)) return json({ error: "unauthorized" }, 401);
         return json({ results: await coordinator(env).process() });

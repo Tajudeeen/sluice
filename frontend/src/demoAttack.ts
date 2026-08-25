@@ -9,4 +9,4 @@ export const DEMO_ATTACKER_ADDRESS =
 // Calibrated to push the largest holder past the 50% hard-block threshold given
 // the seed distribution (see README "Demo math"): holder A starts at 350k/1M
 // (35%); the attacker (900k) sends 900k into A => A = 1250k of 1.9M = 65.8%.
-export const ATTACK_AMOUNT = ethers.parseUnits("2200000", 18);
+export const ATTACK_AMOUNT = ethers.parseUnits("900000", 18);

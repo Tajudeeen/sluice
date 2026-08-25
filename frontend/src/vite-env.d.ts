@@ -14,6 +14,7 @@ interface ImportMetaEnv {
   readonly VITE_GATE_ADDRESS?: string;
   readonly VITE_ATTESTER_ADDRESS?: string;
   readonly VITE_DEMO_ATTACKER_ADDRESS?: string;
+  readonly VITE_AGENT_HEALTH_URL?: string;
 }
 
 interface ImportMeta {

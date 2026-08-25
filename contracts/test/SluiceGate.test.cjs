@@ -116,6 +116,20 @@ describe("SluiceAsset", () => {
     ).to.be.revertedWithCustomError(asset, "OnlyGate");
   });
 
+  it("blocks allowance-based burnFrom by a non-gate spender", async () => {
+    const { asset, alice, bob } = await loadFixture(deployFixture);
+    const amt = ethers.parseUnits("10", 18);
+    await asset.connect(alice).approve(bob.address, amt);
+    await expect(asset.connect(bob).burnFrom(alice.address, amt))
+      .to.be.revertedWithCustomError(asset, "OnlyGate");
+  });
+
+  it("prevents gate rotation after initial setup", async () => {
+    const { asset, stranger } = await loadFixture(deployFixture);
+    await expect(asset.setGate(stranger.address))
+      .to.be.revertedWithCustomError(asset, "GateAlreadySet");
+  });
+
   it("allows the gate to move tokens", async () => {
     const { asset, gate, alice, bob } = await loadFixture(deployFixture);
     await asset.connect(alice).approve(await gate.getAddress(), ethers.parseUnits("100", 18));

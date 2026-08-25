@@ -73,6 +73,7 @@ export class SluiceAgent {
   private asset: ethers.Contract;
   private processed = new Set<number>();
   private history: { amount: bigint; timestamp: number; requester: string }[] = [];
+  private processing: Promise<void> = Promise.resolve();
   private running = false;
   private healthServer?: Server;
   private startedAt = new Date().toISOString();
@@ -109,7 +110,7 @@ export class SluiceAgent {
       // Best effort: if the RPC exposes eth_subscribe (WebSocket transport),
       // subscribe; otherwise the gateway below falls back to polling on error.
       try {
-        this.gate.on("RequestCreated", (id: bigint) => this.handle(Number(id)).catch((e) => this.logErr(e)));
+        this.gate.on("RequestCreated", (id: bigint) => { void this.enqueue(Number(id)); });
         console.log("[sluice-agent] subscribed via event emitter (RequestCreated).");
         return;
       } catch (e) {
@@ -285,11 +286,18 @@ export class SluiceAgent {
 
   // -------------------- request handling --------------------
 
+  // Risk decisions depend on shared holder/history state. Serialize all event
+  // work so concurrent RequestCreated events cannot evaluate the same snapshot.
+  private enqueue(requestId: number): Promise<void> {
+    const run = this.processing.then(() => this.handle(requestId));
+    this.processing = run.catch((e) => this.logErr(e));
+    return this.processing;
+  }
+
   private async handle(requestId: number) {
     if (this.processed.has(requestId)) return;
     const raw = await this.gate.getRequest(requestId);
     if (Number(raw.status) !== REQUEST_STATUS.PENDING) return;
-    this.processed.add(requestId);
 
     const req = {
       requester: raw.requester,
@@ -299,12 +307,6 @@ export class SluiceAgent {
     };
     const nowSec = Math.floor(Date.now() / 1000);
     const { decision, risk } = await this.evaluate(req);
-
-    // Record into sliding anomaly history (what we just acted on).
-    this.history.push({ amount: req.amount, timestamp: nowSec, requester: req.requester });
-    if (this.history.length > this.cfg.config.anomaly.windowSize) {
-      this.history.shift();
-    }
 
     const aiCode = (decision as any).aiClassification ?? AI_CLASS.INSUFFICIENT_DATA;
     const aiConf = (decision as any).aiConfidence ?? 0;
@@ -331,6 +333,9 @@ export class SluiceAgent {
     const method = decision.decision === "APPROVE" ? "approve" : "blockRequest";
     const tx = await this.gate[method](requestId, att);
     const receipt = await tx.wait();
+    this.processed.add(requestId);
+    this.history.push({ amount: req.amount, timestamp: nowSec, requester: req.requester });
+    while (this.history.length > this.cfg.config.anomaly.windowSize) this.history.shift();
     console.log(`[sluice-agent] submitted ${method}(${requestId}) -> ${receipt.hash}`);
   }
 
@@ -343,7 +348,7 @@ export class SluiceAgent {
       const filter = this.gate.filters.RequestCreated();
       const logs = await this.gate.queryFilter(filter, from, current);
       for (const l of logs) {
-        await this.handle(Number((l as any).args.id));
+        await this.enqueue(Number((l as any).args.id));
       }
     } catch (e) {
       this.logErr(e);
@@ -356,7 +361,7 @@ export class SluiceAgent {
     const filter = this.gate.filters.RequestCreated();
     const logs = await this.gate.queryFilter(filter, from, current);
     for (const l of logs) {
-      await this.handle(Number((l as any).args.id));
+      await this.enqueue(Number((l as any).args.id));
     }
     this.cfg.fromBlock = current + 1;
   }

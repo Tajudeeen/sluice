@@ -11,7 +11,6 @@ export const RPC_URL = (import.meta.env.VITE_RPC_URL as string) || "https://api.
 export const EXPLORER_URL = (import.meta.env.VITE_EXPLORER_URL as string) || "https://shannon-explorer.somnia.network";
 export const ATTESTER_ADDRESS = (import.meta.env.VITE_ATTESTER_ADDRESS as string) || "";
 export const AGENT_HEALTH_URL = (import.meta.env.VITE_AGENT_HEALTH_URL as string) || "";
-export const AGENT_PROCESS_URL = (import.meta.env.VITE_AGENT_PROCESS_URL as string) || AGENT_HEALTH_URL;
 
 // Whether the build was wired with live contract addresses. Drives demo-mode UI.
 export const CONFIGURED = !!GATE_ADDRESS && !!ASSET_ADDRESS;

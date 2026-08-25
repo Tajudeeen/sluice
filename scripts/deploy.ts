@@ -39,10 +39,9 @@ function distribution(): { addr: string; amount: bigint }[] {
 
 // Predefined SYNTHETIC demo-attacker wallet for the "concentration attack"
 // simulator. This is Hardhat's well-known test account #1: it controls NO real
-// funds and ONLY ever holds synthetic SLUSD. The frontend simulator uses this
-// key to originate a REAL on-chain attack request (so the resulting BLOCK is
-// verifiable on-chain), exactly as the spec requires (§25). It is never the
-// attester, never touches mainnet funds, and is clearly labeled synthetic.
+// funds and ONLY ever holds synthetic SLUSD. Protected Worker/local tooling may
+// use the key for an on-chain proof; the browser receives only its public
+// address. It is never the attester and never touches mainnet funds.
 export const DEMO_ATTACKER_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
 export const DEMO_ATTACKER_ADDRESS = new ethers.Wallet(DEMO_ATTACKER_KEY).address;
 // The attack CONSOLIDATES the attacker's stake into the largest holder (holder A
@@ -52,8 +51,8 @@ export const DEMO_ATTACKER_ADDRESS = new ethers.Wallet(DEMO_ATTACKER_KEY).addres
 export let DEMO_ATTACK_TARGET = "0x00000000000000000000000000000000deadbeef";
 // The attack transfers this much synthetic SLUSD, calibrated so that after
 // consolidation the largest holder crosses 50% (see README "Demo math"):
-// holder A starts at 350k/1M (35%); attacker (500k) sends 450k to A => A = 800k
-// of 1.5M = 53% => deterministic hard block (largest holder >= 50%).
+// Holder A starts at 350k/1M (35%); the 900k synthetic attacker stake is
+// consolidated into A, making A 1.25M/1.9M = 65.8% and triggering the block.
 export const ATTACK_AMOUNT = ethers.parseUnits("900000", 18);
 
 async function main() {
@@ -153,11 +152,10 @@ async function main() {
     console.log(`  minted remaining ${ethers.formatUnits(remainder, 18)} SLUSD -> ${deployer.address}`);
   }
 
-  // Seed the SYNTHETIC demo-attacker wallet (Hardhat test account #1) so the
-  // concentration-attack simulator can originate a REAL on-chain request that
+  // Seed the SYNTHETIC demo-attacker wallet (Hardhat test account #1) so
+  // protected Worker/local tooling can originate an on-chain request that
   // breaches the HHI hard-block. Synthetic SLUSD only: no real value.
-  // 500k of the 1.5M pool; the attack sends 450k into holder A, pushing A past 50%.
-  const attackSeed = ethers.parseUnits("900000", 18);
+  const attackSeed = ATTACK_AMOUNT;
   {
     const tx = await asset.mint(DEMO_ATTACKER_ADDRESS, attackSeed);
     await tx.wait();
@@ -198,7 +196,7 @@ async function main() {
     console.log(`VITE_DEMO_ATTACKER_ADDRESS=${DEMO_ATTACKER_ADDRESS}`);
   }
   console.log(`--- .env (agent + simulator) ---`);
-  console.log(`ATTESTER_PRIVATE_KEY=${process.env.ATTESTER_PRIVATE_KEY || "(set this)"}`);
+  console.log(`# Set ATTESTER_PRIVATE_KEY securely; its public address is ${attesterAddr}`);
   console.log(`SLUICE_GATE_ADDRESS=${await gate.getAddress()}`);
   console.log(`SLUICE_ASSET_ADDRESS=${await asset.getAddress()}`);
   if (hre.network.name === "hardhat" || hre.network.name === "localhost") {
@@ -208,8 +206,7 @@ async function main() {
 
   // Emit a ready-to-use frontend build env (.env.frontend) so the hosted build
   // can be produced in one step: `cp .env.frontend frontend/.env && npm run frontend:build`.
-  // On testnets/mainnet we also wire the demo-attacker key so the concentration
-  // attack simulator runs live on the hosted link.
+  // The frontend receives only the synthetic demo wallet's public address.
   const chainName = hre.network.name === "somnia" ? "Somnia Shannon" : hre.network.name === "sepolia" ? "Sepolia" : "Local";
   const networkTag = chainName;
   const explorer = hre.network.name === "somnia" ? "https://shannon-explorer.somnia.network" : hre.network.name === "sepolia" ? "https://sepolia.etherscan.io/" : "";

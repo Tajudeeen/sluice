@@ -1,7 +1,7 @@
 // End-to-end demo driver against a LOCAL Hardhat node.
 // Executes the two required flows with REAL on-chain transactions:
 //   1) NORMAL : deployer sends a small safe transfer -> agent APPROVES -> funds settle.
-//   2) ATTACK : synthetic demo attacker sends a 400k transfer -> agent BLOCKS (HHI hard block) -> refund.
+//   2) ATTACK : synthetic demo attacker sends a 900k transfer -> agent BLOCKS (HHI hard block) -> refund.
 // Prints request ids + settlement tx hashes so the result is independently verifiable
 // against the node (and, on mainnet, the explorer).
 
@@ -74,8 +74,8 @@ async function run() {
   console.log(`  request id = requestCounter (pending), submitted tx ${r1.hash}`);
   await sleep(7000); // let agent poll + settle
 
-  // ---- FLOW 2: ATTACK concentration (550k transfer, breaches HHI) ----
-  console.log("\n=== FLOW 2: ATTACK transfer (attacker -> fixed target, 550,000 SLUSD) ===");
+  // ---- FLOW 2: ATTACK concentration (900k transfer, breaches HHI) ----
+  console.log("\n=== FLOW 2: ATTACK transfer (attacker -> fixed target, 900,000 SLUSD) ===");
   const atkAmt = ethers.parseUnits("900000", 18);
   await (await assetA.approve(GATE, atkAmt)).wait();
   await sleep(800);

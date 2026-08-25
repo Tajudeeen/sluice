@@ -20,6 +20,7 @@ contract SluiceAsset is ERC20, ERC20Burnable, Ownable {
     mapping(address => bool) private _isHolder;
 
     error GateNotSet();
+    error GateAlreadySet();
     error OnlyGate();
     error ZeroAddress();
     error FaucetAlreadyClaimed();
@@ -37,9 +38,12 @@ contract SluiceAsset is ERC20, ERC20Burnable, Ownable {
         require(initialAttester != address(0), "zero attester");
     }
 
-    /// @notice Owner configures the single authorized gate. Only the gate may move tokens.
+    /// @notice Owner configures the single authorized gate once. Making this
+    ///         immutable after setup prevents pending escrow from being stranded
+    ///         in an old gate after an unsafe rotation.
     function setGate(address gate_) external onlyOwner {
         if (gate_ == address(0)) revert ZeroAddress();
+        if (gate != address(0)) revert GateAlreadySet();
         gate = gate_;
         emit GateSet(gate_);
     }
@@ -67,6 +71,12 @@ contract SluiceAsset is ERC20, ERC20Burnable, Ownable {
     ///      burns msg.sender's balance; the gate holds the locked escrow.
     function burn(uint256 value) public override onlyGate {
         super.burn(value);
+    }
+
+    /// @dev The inherited allowance-based burn path must obey the same
+    ///      gate-only invariant as burn().
+    function burnFrom(address account, uint256 value) public override onlyGate {
+        super.burnFrom(account, value);
     }
 
     modifier onlyGate() {

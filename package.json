@@ -21,7 +21,8 @@
     "worker:typecheck": "tsc -p worker/tsconfig.json --noEmit",
     "frontend:typecheck": "tsc -p frontend/tsconfig.json --noEmit",
     "frontend:test": "vitest run --config frontend/vitest.config.ts",
-    "verify:submission": "npm run frontend:typecheck && npm run frontend:test && npm run worker:typecheck && npm run test:agent && npm test && npm run frontend:build -- --base=/sluice/",
+    "verify:secrets": "node scripts/verify-secret-safety.mjs",
+    "verify:submission": "npm run verify:secrets && npm run frontend:typecheck && npm run frontend:test && npm run worker:typecheck && npm run test:agent && npm test && npm run frontend:build -- --base=/sluice/",
     "frontend": "vite --config frontend/vite.config.ts",
     "frontend:build": "vite build --config frontend/vite.config.ts"
   },
