@@ -43,6 +43,11 @@ export type WalletSnapshot = {
 };
 export type PredictionOutcome = { label: "PENDING" | "WON" | "LOST" | "VOID / REFUNDABLE"; tone: "pending" | "win" | "loss" | "void" };
 
+/** Return a timestamped collection newest-first without mutating the source. */
+export function newestFirst<T>(values: readonly T[], timestamp: (value: T) => string | number): T[] {
+  return [...values].sort((a, b) => Number(timestamp(b)) - Number(timestamp(a)));
+}
+
 /** Interpret DreamDEX settlement fields without assuming one exact finalized status label. */
 export function predictionOutcome(market: { voided: boolean; winningOutcome?: number | null }, outcomeIndex: number): PredictionOutcome {
   if (market.voided) return { label: "VOID / REFUNDABLE", tone: "void" };

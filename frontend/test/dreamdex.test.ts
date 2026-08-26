@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Candle, UnifiedOrderBook } from "@somnia-chain/markets-sdk";
 import type { DreamMarket, WalletSnapshot } from "../src/dreamdex";
-import { candleQuoteVolume, executionPreview, marketCategory, predictionOutcome, safeOrderSize } from "../src/dreamdex";
+import { candleQuoteVolume, executionPreview, marketCategory, newestFirst, predictionOutcome, safeOrderSize } from "../src/dreamdex";
 import { formatRawUnits, scaledNumber } from "../src/units";
 
 const market = {
@@ -93,6 +93,14 @@ describe("predictionOutcome", () => {
     expect(predictionOutcome({ voided: false, winningOutcome: 1 }, 0)).toEqual({ label: "LOST", tone: "loss" });
     expect(predictionOutcome({ voided: false, winningOutcome: null }, 0)).toEqual({ label: "PENDING", tone: "pending" });
     expect(predictionOutcome({ voided: true, winningOutcome: null }, 0)).toEqual({ label: "VOID / REFUNDABLE", tone: "void" });
+  });
+});
+
+describe("newestFirst", () => {
+  it("sorts a copy newest-first without mutating the source", () => {
+    const source = [{ id: "old", at: "10" }, { id: "new", at: "30" }, { id: "mid", at: "20" }];
+    expect(newestFirst(source, (row) => row.at).map((row) => row.id)).toEqual(["new", "mid", "old"]);
+    expect(source.map((row) => row.id)).toEqual(["old", "new", "mid"]);
   });
 });
 
