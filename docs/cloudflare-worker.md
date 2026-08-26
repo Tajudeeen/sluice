@@ -87,6 +87,11 @@ Runtime secrets such as `ATTESTER_PRIVATE_KEY` and `PROCESS_TOKEN` remain stored
 in Cloudflare. Provision them once with `wrangler secret put`; GitHub does not
 receive or print those values.
 
+The release gate blocks on high/critical vulnerabilities in the deployed runtime
+(`npm audit --omit=dev`). A separate full-tree audit is reported for visibility;
+its remaining Hardhat/toolbox findings are development-tool migration work and
+are not bundled into the Worker or Pages runtime.
+
 ### Manual deployment
 
 ```powershell

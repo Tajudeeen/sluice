@@ -314,7 +314,8 @@ describe("SluiceGate - settlement (authorization + attestation)", () => {
     const amt = ethers.parseUnits("100", 18);
     await asset.connect(alice).approve(await gate.getAddress(), amt);
     await gate.connect(alice).requestTransfer(bob.address, amt);
-    const att = await makeAttestation(gate, attester, 1n, 0, { expiry: Math.floor(Date.now() / 1000) - 10 });
+    const latest = await ethers.provider.getBlock("latest");
+    const att = await makeAttestation(gate, attester, 1n, 0, { expiry: Number(latest.timestamp) - 10 });
     await expect(gate.connect(attester).approve(1, att))
       .to.be.revertedWithCustomError(gate, "Expired");
   });
