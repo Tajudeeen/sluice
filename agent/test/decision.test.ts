@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { decide, assessRisk } from "../src/decision/decision";
+import { evaluatePolicy } from "../src/decision/policy";
 import { configuredAiProvider } from "../src/ai/classifier";
 import { DEFAULT_CONFIG } from "../src/config";
 import type { PoolSnapshot, ProposedTx } from "../src/types";
@@ -95,6 +96,19 @@ describe("decision engine", () => {
     expect(risk.current.hhi).toBeGreaterThan(0);
     expect(risk.projected.hhi).toBeGreaterThan(risk.current.hhi); // concentration increases
     expect(risk.projected.largestHolderPct).toBeGreaterThan(risk.current.largestHolderPct);
+  });
+
+  it("uses one shared policy adapter for the Node and Worker settlement paths", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("GROQ_API_KEY", "");
+    const snap = demoSnapshot();
+    const tx: ProposedTx = { type: "TRANSFER", requester: "A", recipient: "B", amount: 60_000n * ONE };
+    const history = [{ amount: 50_000n * ONE, timestamp: 995, requester: "A" }];
+    const shared = await evaluatePolicy(snap, tx, history, 1000, DEFAULT_CONFIG);
+    const directDecision = await decide(snap, tx, history, 1000, DEFAULT_CONFIG);
+    const directRisk = assessRisk(snap, tx, history, 1000, DEFAULT_CONFIG);
+    expect(shared.decision).toEqual(directDecision);
+    expect(shared.risk).toEqual(directRisk);
   });
 
   it("prefers Groq when both AI providers are configured", () => {

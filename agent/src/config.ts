@@ -77,3 +77,7 @@ export const AI_CLASS = {
 } as const;
 
 export const DECISION = { APPROVE: 0, BLOCK: 1 } as const;
+
+// Must match SluiceAsset.MAX_HOLDERS. Runtime scans fail closed above this
+// value, and the token prevents the tracked set from growing beyond it.
+export const MAX_SUPPORTED_HOLDERS = 256;

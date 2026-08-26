@@ -1,8 +1,8 @@
 import { ethers } from "ethers";
 import { DurableObject } from "cloudflare:workers";
 import { configureAiEnvironment, configuredAiProvider } from "../../agent/src/ai/classifier";
-import { decide, assessRisk } from "../../agent/src/decision/decision";
-import { DEFAULT_CONFIG, AI_CLASS, DECISION, REASON } from "../../agent/src/config";
+import { evaluatePolicy } from "../../agent/src/decision/policy";
+import { DEFAULT_CONFIG, AI_CLASS, DECISION, REASON, MAX_SUPPORTED_HOLDERS } from "../../agent/src/config";
 import type { PoolSnapshot, ProposedTx, RiskAssessment } from "../../agent/src/types";
 
 export interface Env {
@@ -32,7 +32,8 @@ const GATE_ABI = [
 ];
 const ASSET_ABI = [
   "function totalSupply() view returns (uint256)",
-  "function holders() view returns (address[])",
+  "function holderCount() view returns (uint256)",
+  "function holderAt(uint256 index) view returns (address)",
   "function balanceOf(address) view returns (uint256)",
   "function approve(address spender, uint256 amount) returns (bool)",
 ];
@@ -72,11 +73,22 @@ function clients(env: Env) {
 }
 
 async function snapshot(asset: ethers.Contract, gate: ethers.Contract, escrowOwner: string): Promise<PoolSnapshot> {
-  const [totalSupply, holderAddrs, gateAddr] = await Promise.all([asset.totalSupply(), asset.holders(), gate.getAddress()]);
-  const balances = await Promise.all((holderAddrs as string[]).map((a) => asset.balanceOf(a)));
-  const gateIndex = (holderAddrs as string[]).findIndex((a) => a.toLowerCase() === gateAddr.toLowerCase());
+  const [totalSupply, holderCount, gateAddr] = await Promise.all([asset.totalSupply(), asset.holderCount(), gate.getAddress()]);
+  const count = Number(holderCount);
+  if (!Number.isSafeInteger(count) || count < 0 || count > MAX_SUPPORTED_HOLDERS) throw new Error(`Holder set exceeds safe scan limit: ${String(holderCount)}`);
+  const holderAddrs: string[] = [];
+  const balances: bigint[] = [];
+  const batchSize = 100;
+  for (let start = 0; start < count; start += batchSize) {
+    const end = Math.min(count, start + batchSize);
+    const addresses = await Promise.all(Array.from({ length: end - start }, (_, offset) => asset.holderAt(start + offset) as Promise<string>));
+    const pageBalances = await Promise.all(addresses.map((address) => asset.balanceOf(address) as Promise<bigint>));
+    holderAddrs.push(...addresses);
+    balances.push(...pageBalances);
+  }
+  const gateIndex = holderAddrs.findIndex((a) => a.toLowerCase() === gateAddr.toLowerCase());
   const escrow = gateIndex >= 0 ? balances[gateIndex] as bigint : 0n;
-  const holders = (holderAddrs as string[])
+  const holders = holderAddrs
     .map((address, i) => address.toLowerCase() === gateAddr.toLowerCase() ? null : { address, balance: balances[i] as bigint })
     .filter(Boolean) as { address: string; balance: bigint }[];
   const owner = holders.find((h) => h.address.toLowerCase() === escrowOwner.toLowerCase());
@@ -94,8 +106,7 @@ async function settle(id: number, env: Env, history: HistoryEntry[], onEvaluated
   const tx: ProposedTx = { type: req.requestType === 1 ? "REDEMPTION" : "TRANSFER", requester: req.requester, recipient: req.recipient, amount: req.amount };
   const snap = await snapshot(asset, gate, req.requester);
   const now = Math.floor(Date.now() / 1000);
-  const decision = await decide(snap, tx, history, now, DEFAULT_CONFIG);
-  const risk = assessRisk(snap, tx, history, now, DEFAULT_CONFIG);
+  const { decision, risk } = await evaluatePolicy(snap, tx, history, now, DEFAULT_CONFIG);
   const aiClassification = decision.aiClassification ?? AI_CLASS.INSUFFICIENT_DATA;
   const aiConfidence = decision.aiConfidence ?? 0;
   const domain = { name: "SluiceGate", version: "1", chainId: (await provider.getNetwork()).chainId, verifyingContract: env.SLUICE_GATE_ADDRESS };
@@ -167,8 +178,18 @@ async function runDemoAttack(env: Env, history: HistoryEntry[], onEvaluated?: (e
   const gate = new ethers.Contract(env.SLUICE_GATE_ADDRESS, GATE_ABI, wallet);
   const asset = new ethers.Contract(env.SLUICE_ASSET_ADDRESS, ASSET_ABI, wallet);
   const attacker = await wallet.getAddress();
-  const [holderAddrs, gateAddress] = await Promise.all([asset.holders() as Promise<string[]>, gate.getAddress()]);
-  const balances = await Promise.all(holderAddrs.map((address) => asset.balanceOf(address) as Promise<bigint>));
+  const [holderCount, gateAddress] = await Promise.all([asset.holderCount() as Promise<bigint>, gate.getAddress()]);
+  const count = Number(holderCount);
+  if (!Number.isSafeInteger(count) || count < 0 || count > MAX_SUPPORTED_HOLDERS) throw new Error(`Holder set exceeds safe scan limit: ${String(holderCount)}`);
+  const holderAddrs: string[] = [];
+  const balances: bigint[] = [];
+  for (let start = 0; start < count; start += 100) {
+    const end = Math.min(count, start + 100);
+    const addresses = await Promise.all(Array.from({ length: end - start }, (_, offset) => asset.holderAt(start + offset) as Promise<string>));
+    const pageBalances = await Promise.all(addresses.map((address) => asset.balanceOf(address) as Promise<bigint>));
+    holderAddrs.push(...addresses);
+    balances.push(...pageBalances);
+  }
   const candidates = holderAddrs
     .map((address, index) => ({ address, balance: balances[index] }))
     .filter(({ address, balance }) => balance > 0n && address.toLowerCase() !== attacker.toLowerCase() && address.toLowerCase() !== gateAddress.toLowerCase())
@@ -233,27 +254,24 @@ export class SettlementCoordinator extends DurableObject<Env> {
     return run;
   }
 
+  private async recordHistory(entry: HistoryEntry): Promise<void> {
+    const history = await this.loadHistory();
+    const next = [...history, entry].slice(-DEFAULT_CONFIG.anomaly.windowSize);
+    await this.ctx.storage.put(HISTORY_STORAGE_KEY, next);
+    this.history = next;
+  }
+
   process(requestedId?: number): Promise<Record<string, unknown>[]> {
     return this.enqueue(async () => {
       const history = await this.loadHistory();
-      const record = async (entry: HistoryEntry) => {
-        history.push(entry);
-        while (history.length > DEFAULT_CONFIG.anomaly.windowSize) history.shift();
-        await this.ctx.storage.put(HISTORY_STORAGE_KEY, history);
-      };
-      return processPending(this.env, requestedId, history, record);
+      return processPending(this.env, requestedId, history, (entry) => this.recordHistory(entry));
     });
   }
 
   demoAttack(): Promise<Record<string, unknown>> {
     return this.enqueue(async () => {
       const history = await this.loadHistory();
-      const record = async (entry: HistoryEntry) => {
-        history.push(entry);
-        while (history.length > DEFAULT_CONFIG.anomaly.windowSize) history.shift();
-        await this.ctx.storage.put(HISTORY_STORAGE_KEY, history);
-      };
-      return runDemoAttack(this.env, history, record);
+      return runDemoAttack(this.env, history, (entry) => this.recordHistory(entry));
     });
   }
 }

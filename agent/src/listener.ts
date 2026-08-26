@@ -24,8 +24,8 @@ import "dotenv/config";
 
 import { ethers } from "ethers";
 import { createServer, type Server } from "node:http";
-import { DEFAULT_CONFIG, REASON, AI_CLASS, DECISION, type SluiceConfig } from "./config";
-import { decide, assessRisk } from "./decision/decision";
+import { DEFAULT_CONFIG, REASON, AI_CLASS, DECISION, MAX_SUPPORTED_HOLDERS, type SluiceConfig } from "./config";
+import { evaluatePolicy } from "./decision/policy";
 import { configuredAiProvider } from "./ai/classifier";
 import type { PoolSnapshot, ProposedTx, RiskAssessment } from "./types";
 
@@ -39,7 +39,8 @@ const GATE_ABI = [
 
 const ASSET_ABI = [
   "function totalSupply() view returns (uint256)",
-  "function holders() view returns (address[])",
+  "function holderCount() view returns (uint256)",
+  "function holderAt(uint256 index) view returns (address)",
   "function balanceOf(address) view returns (uint256)",
 ];
 
@@ -178,14 +179,27 @@ export class SluiceAgent {
   // the supply: otherwise a transfer would be double-counted (credited to the
   // recipient while also vanishing from the gate), masking concentration breaches.
   private async buildSnapshot(escrowOwner?: string): Promise<PoolSnapshot> {
-    const [totalSupply, holderAddrs, gateAddr] = await Promise.all([
+    const [totalSupply, holderCount, gateAddr] = await Promise.all([
       this.asset.totalSupply(),
-      this.asset.holders(),
+      this.asset.holderCount(),
       this.gate.getAddress(),
     ]);
-    const balances = await Promise.all(
-      holderAddrs.map((a: string) => this.asset.balanceOf(a))
-    );
+    const count = Number(holderCount);
+    if (!Number.isSafeInteger(count) || count < 0 || count > MAX_SUPPORTED_HOLDERS) {
+      throw new Error(`Holder set exceeds safe scan limit: ${String(holderCount)}`);
+    }
+    const holderAddrs: string[] = [];
+    const balances: bigint[] = [];
+    const batchSize = 100;
+    for (let start = 0; start < count; start += batchSize) {
+      const end = Math.min(count, start + batchSize);
+      const addresses = await Promise.all(
+        Array.from({ length: end - start }, (_, offset) => this.asset.holderAt(start + offset) as Promise<string>)
+      );
+      const pageBalances = await Promise.all(addresses.map((address) => this.asset.balanceOf(address) as Promise<bigint>));
+      holderAddrs.push(...addresses);
+      balances.push(...pageBalances);
+    }
     const gateIdx = holderAddrs.findIndex((a: string) => a.toLowerCase() === gateAddr.toLowerCase());
     const escrow = gateIdx >= 0 ? (balances[gateIdx] as bigint) : 0n;
 
@@ -226,12 +240,11 @@ export class SluiceAgent {
     amount: bigint;
     requestType: number;
     nowSec?: number;
-  }): Promise<{ decision: ReturnType<typeof decide> extends Promise<infer T> ? T : never; risk: RiskAssessment; tx: ProposedTx; snap: PoolSnapshot }> {
+  }): Promise<{ decision: Awaited<ReturnType<typeof evaluatePolicy>>["decision"]; risk: RiskAssessment; tx: ProposedTx; snap: PoolSnapshot }> {
     const snap = await this.buildSnapshot(req.requester);
     const tx = this.toProposedTx(req);
     const now = req.nowSec ?? Math.floor(Date.now() / 1000);
-    const decision = await decide(snap, tx, this.history, now, this.cfg.config);
-    const risk = assessRisk(snap, tx, this.history, now, this.cfg.config);
+    const { decision, risk } = await evaluatePolicy(snap, tx, this.history, now, this.cfg.config);
     return { decision, risk, tx, snap } as any;
   }
 

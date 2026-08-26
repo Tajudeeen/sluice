@@ -4,13 +4,16 @@ pragma solidity ^0.8.24;
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC20Burnable} from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /// @title SluiceAsset
 /// @notice Synthetic demo token "SLUSD" (Sluice Liquidity Unit).
 /// @dev This asset is SYNTHETIC. It does not represent custody of any real-world asset.
 ///      Token movement is gated: transfers only occur through the authorized SluiceGate.
 ///      Direct ERC-20 transfers are rejected, so there is no bypass path around the firewall.
-contract SluiceAsset is ERC20, ERC20Burnable, Ownable {
+contract SluiceAsset is ERC20, ERC20Burnable, Ownable2Step {
+    uint256 public constant MAX_HOLDERS = 256;
+
     address public gate;
 
     // Lightweight holder tracking so the off-chain risk engine can read the
@@ -25,6 +28,7 @@ contract SluiceAsset is ERC20, ERC20Burnable, Ownable {
     error ZeroAddress();
     error FaucetAlreadyClaimed();
     error FaucetCapReached();
+    error HolderCapReached();
 
     event GateSet(address indexed gate);
 
@@ -86,6 +90,7 @@ contract SluiceAsset is ERC20, ERC20Burnable, Ownable {
 
     function _track(address who) private {
         if (!_isHolder[who]) {
+            if (_holderList.length >= MAX_HOLDERS) revert HolderCapReached();
             _isHolder[who] = true;
             _holderList.push(who);
         }
@@ -96,8 +101,20 @@ contract SluiceAsset is ERC20, ERC20Burnable, Ownable {
         return _holderList;
     }
 
+    /// @notice Read a bounded holder page for off-chain risk scans.
+    /// @dev The legacy holders() view remains for compatibility, while agents
+    ///      should use holderAt() with holderCount() to avoid one unbounded RPC
+    ///      response and one unbounded balance fanout.
+    function holderAt(uint256 index) external view returns (address) {
+        return _holderList[index];
+    }
+
     function holderCount() external view returns (uint256) {
         return _holderList.length;
+    }
+
+    function isTrackedHolder(address account) external view returns (bool) {
+        return _isHolder[account];
     }
 
     /// @notice Demo faucet: owner mints a small amount to the caller so a

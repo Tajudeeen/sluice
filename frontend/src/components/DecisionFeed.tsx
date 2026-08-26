@@ -1,5 +1,5 @@
-import { ethers } from "ethers";
 import { REQUEST_STATUS, type RequestView } from "../lib/types";
+import { formatRawUnits } from "../units";
 
 // DecisionFeed: live recent requests settled through the gate (spec §22/§23).
 // Reads from the on-chain gate so the list always reflects real state.
@@ -25,7 +25,7 @@ export default function DecisionFeed({ requests }: { requests: RequestView[] }) 
             <tr key={r.id}>
               <td>{r.id}</td>
               <td>{r.type === 1 ? "Redeem" : "Transfer"}</td>
-              <td>{Number(ethers.formatUnits(r.amount, 18)).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+              <td>{formatRawUnits(r.amount, 18, 2)}</td>
               <td><span className={`badge s${r.status}`}>{REQUEST_STATUS[r.status]}</span></td>
               <td className="muted small">{r.createdAt ? new Date(r.createdAt * 1000).toLocaleTimeString() : ""}</td>
             </tr>

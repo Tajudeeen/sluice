@@ -7,6 +7,12 @@ import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {AttesterRegistry} from "./AttesterRegistry.sol";
 
+interface ISluiceAsset is IERC20 {
+    function MAX_HOLDERS() external view returns (uint256);
+    function holderCount() external view returns (uint256);
+    function isTrackedHolder(address account) external view returns (bool);
+}
+
 /// @title SluiceGate
 /// @notice The on-chain execution firewall. Locks funds, emits a request event,
 ///         and only releases/refunds after an authorized attester submits a valid
@@ -63,7 +69,7 @@ contract SluiceGate is ReentrancyGuard, EIP712 {
         bytes signature; // 65-byte sig, NOT signed (passed alongside)
     }
 
-    IERC20 public immutable asset;
+    ISluiceAsset public immutable asset;
     AttesterRegistry public immutable registry;
     uint256 public immutable timeout;
 
@@ -85,6 +91,8 @@ contract SluiceGate is ReentrancyGuard, EIP712 {
     error SelfTransfer();
     error InsufficientAllowance();
     error NoSuchRequest();
+    error InvalidAttestationFields();
+    error HolderCapReached();
 
     // ---- Events ----
     event RequestCreated(
@@ -114,7 +122,7 @@ contract SluiceGate is ReentrancyGuard, EIP712 {
 
     constructor(address asset_, address registry_, uint256 timeout_) EIP712("SluiceGate", "1") {
         if (asset_ == address(0) || registry_ == address(0)) revert ZeroAddress();
-        asset = IERC20(asset_);
+        asset = ISluiceAsset(asset_);
         registry = AttesterRegistry(registry_);
         timeout = timeout_ == 0 ? 1 hours : timeout_;
     }
@@ -128,6 +136,9 @@ contract SluiceGate is ReentrancyGuard, EIP712 {
         if (to == address(0)) revert ZeroAddress();
         if (to == msg.sender) revert SelfTransfer();
         if (amount == 0) revert ZeroAmount();
+        if (!asset.isTrackedHolder(to) && asset.holderCount() >= asset.MAX_HOLDERS()) {
+            revert HolderCapReached();
+        }
         _lock(msg.sender, amount);
         id = _open(msg.sender, to, amount, RequestType.TRANSFER);
     }
@@ -228,8 +239,16 @@ contract SluiceGate is ReentrancyGuard, EIP712 {
         if (req.status != RequestStatus.PENDING) revert NotPending();
         if (att.requestId != requestId) revert WrongRequestId();
         if (att.decision != want) revert WrongDecision();
+        if (
+            att.reasonCode > uint8(type(ReasonCode).max) ||
+            att.aiClassification > uint8(type(AiClassification).max) ||
+            att.riskScore > 100 ||
+            att.deterministicScore > 100 ||
+            att.aiConfidence > 100
+        ) revert InvalidAttestationFields();
         if (att.timestamp > block.timestamp + MAX_TIMESTAMP_SKEW) revert FutureTimestamp();
         if (att.expiry < block.timestamp) revert Expired();
+        if (att.expiry <= att.timestamp) revert InvalidAttestationFields();
 
         bytes32 structHash = keccak256(
             abi.encode(

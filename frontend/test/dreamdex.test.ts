@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Candle, UnifiedOrderBook } from "@somnia-chain/markets-sdk";
 import type { DreamMarket, WalletSnapshot } from "../src/dreamdex";
 import { candleQuoteVolume, executionPreview, marketCategory, predictionOutcome, safeOrderSize } from "../src/dreamdex";
+import { formatRawUnits, scaledNumber } from "../src/units";
 
 const market = {
   marketId: "0x0000000000000000000000000000000000000000000000000000000000000001",
@@ -67,6 +68,14 @@ describe("candleQuoteVolume", () => {
       { bucketStart: "2", openPrice: "0", high: "0", low: "0", closePrice: "0", baseVolume: "0", quoteVolume: "1250000", tradeCount: 1 },
     ] as Candle[];
     expect(candleQuoteVolume(candles, 6)).toBeCloseTo(3.75, 8);
+  });
+});
+
+describe("raw unit conversion", () => {
+  it("scales values before Number conversion and formats large integers exactly", () => {
+    const raw = 12_345_678_901_234_567_890_123_456n;
+    expect(scaledNumber(raw, 18)).toBeCloseTo(12_345_678.901234567, 6);
+    expect(formatRawUnits(raw, 18, 6)).toBe("12,345,678.901234");
   });
 });
 

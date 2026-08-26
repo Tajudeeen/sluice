@@ -20,5 +20,12 @@ ATTESTATION_TTL = "600"
 DEMO_ATTACK_AMOUNT = "900000"
 DEMO_MODE_ENABLED = "false"
 
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[secrets]
+required = ["ATTESTER_PRIVATE_KEY", "PROCESS_TOKEN"]
+
 [triggers]
 crons = ["* * * * *"]

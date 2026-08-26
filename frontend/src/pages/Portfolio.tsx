@@ -3,11 +3,12 @@ import { Link } from "react-router-dom";
 import { useAccount } from "wagmi";
 import type { Portfolio as DreamPortfolio } from "@somnia-chain/markets-sdk";
 import { DREAMDEX_EXPLORER_URL, dreamdexExchange, formatExpiry, predictionOutcome } from "../dreamdex";
+import { formatRawUnits, scaledNumber } from "../units";
 
 type Tab = "positions" | "orders" | "fills";
 type SyncState = "idle" | "loading" | "connected" | "error";
-const units = (raw: string | undefined, decimals = 6) => raw == null ? "0" : (Number(raw) / 10 ** decimals).toLocaleString([], { maximumFractionDigits: 4 });
-const probability = (raw: string | undefined, decimals = 6) => raw == null ? "—" : `${(Number(raw) / 10 ** decimals * 100).toFixed(2)}%`;
+const units = (raw: string | undefined, decimals = 6) => raw == null ? "0" : formatRawUnits(raw, decimals, 4);
+const probability = (raw: string | undefined, decimals = 6) => raw == null ? "—" : `${(scaledNumber(raw, decimals) * 100).toFixed(2)}%`;
 const txUrl = (hash: string) => `${DREAMDEX_EXPLORER_URL.replace(/\/$/, "")}/tx/${hash}`;
 
 function lifecycle(market: DreamPortfolio["positions"][number]["market"]): string {

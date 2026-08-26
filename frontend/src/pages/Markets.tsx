@@ -8,12 +8,13 @@ import {
   candleQuoteVolume, formatExpiry, getDreamBook, getDreamCandles, getDreamWalletSnapshot, watchDreamBook,
   listDreamMarkets, marketCategory, marketLabel, minutesLeft, probabilityFromBook,
 } from "../dreamdex";
+import { scaledNumber } from "../units";
 
 type TrailItem = { at: string; state: "info" | "pass" | "block"; label: string; detail: string };
 const compactNumber = (value: number) => Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(value);
 
 function ProbabilityChart({ candles, decimals }: { candles: Candle[]; decimals: number }) {
-  const points = candles.map((candle) => Number(candle.closePrice) / 10 ** decimals).filter(Number.isFinite);
+  const points = candles.map((candle) => scaledNumber(candle.closePrice, decimals)).filter(Number.isFinite);
   if (points.length < 2) return <div className="chart-empty">Price history appears after the first indexed fills.</div>;
   const min = Math.min(...points), max = Math.max(...points), span = Math.max(max - min, 0.02);
   const path = points.map((point, index) => `${index === 0 ? "M" : "L"}${((index / (points.length - 1)) * 100).toFixed(1)},${(44 - ((point - min) / span) * 40).toFixed(1)}`).join(" ");

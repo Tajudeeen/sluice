@@ -1,3 +1,5 @@
+import { formatRawUnits } from "./units";
+
 // On-chain bindings for the Sluice demo frontend.
 // Minimal ABIs (only the functions the UI needs) + helpers to read pool state
 // and submit requests through the gate. VITE_* env vars are inlined at build.
@@ -11,6 +13,7 @@ export const RPC_URL = (import.meta.env.VITE_RPC_URL as string) || "https://api.
 export const EXPLORER_URL = (import.meta.env.VITE_EXPLORER_URL as string) || "https://shannon-explorer.somnia.network";
 export const ATTESTER_ADDRESS = (import.meta.env.VITE_ATTESTER_ADDRESS as string) || "";
 export const AGENT_HEALTH_URL = (import.meta.env.VITE_AGENT_HEALTH_URL as string) || "";
+export const MAX_SUPPORTED_HOLDERS = 256;
 
 // Whether the build was wired with live contract addresses. Drives demo-mode UI.
 export const CONFIGURED = !!GATE_ADDRESS && !!ASSET_ADDRESS;
@@ -32,6 +35,9 @@ export const ASSET_ABI = [
   { type: "function", name: "totalSupply", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
   { type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] },
   { type: "function", name: "holders", stateMutability: "view", inputs: [], outputs: [{ type: "address[]" }] },
+  { type: "function", name: "holderCount", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "holderAt", stateMutability: "view", inputs: [{ name: "index", type: "uint256" }], outputs: [{ type: "address" }] },
+  { type: "function", name: "MAX_HOLDERS", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
   { type: "function", name: "decimals", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
   { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }] },
   { type: "function", name: "allowance", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ type: "uint256" }] },
@@ -98,8 +104,7 @@ export function explorerAddr(addr: string): string {
 // Format a raw token balance (18 decimals) to a human string.
 export function fmt(b: bigint): string {
   try {
-    const v = Number(b >= 0n ? b : 0n);
-    return (v / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return formatRawUnits(b >= 0n ? b : 0n, 18, 2);
   } catch {
     return "0";
   }

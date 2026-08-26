@@ -1,6 +1,7 @@
 import { SomniaMarkets, SOMNIA_TESTNET_ADDRESSES, type BinaryMarket, type UnifiedOrderBook, type Candle } from "@somnia-chain/markets-sdk";
 import { somniaShannon } from "@somnia-chain/markets-sdk/chains";
 import type { Address, Hex } from "viem";
+import { scaledNumber } from "./units";
 
 export const DREAMDEX_INDEXER_URL = (import.meta.env.VITE_DREAMDEX_INDEXER_URL as string) || "https://dev.smk.somnia.host/v1/graphql";
 export const DREAMDEX_RPC_URL = (import.meta.env.VITE_DREAMDEX_RPC_URL as string) || "https://api.infra.testnet.somnia.network";
@@ -69,12 +70,10 @@ export async function getDreamBook(market: DreamMarket): Promise<UnifiedOrderBoo
 }
 
 function binaryBookToUnified(market: DreamMarket, raw: { yesBids: { price: bigint; quantity: bigint }[]; yesAsks: { price: bigint; quantity: bigint }[] }): UnifiedOrderBook {
-  const priceScale = 10 ** market.quoteDecimals;
-  const amountScale = 10 ** market.baseDecimals;
   return {
     symbol: `${market.marketId}#YES`,
-    bids: raw.yesBids.map((level) => [Number(level.price) / priceScale, Number(level.quantity) / amountScale]),
-    asks: raw.yesAsks.map((level) => [Number(level.price) / priceScale, Number(level.quantity) / amountScale]),
+    bids: raw.yesBids.map((level) => [scaledNumber(level.price, market.quoteDecimals), scaledNumber(level.quantity, market.baseDecimals)]),
+    asks: raw.yesAsks.map((level) => [scaledNumber(level.price, market.quoteDecimals), scaledNumber(level.quantity, market.baseDecimals)]),
     timestamp: Date.now(),
     info: raw,
   };
@@ -104,7 +103,7 @@ export async function getDreamCandles(market: DreamMarket, limit = 24): Promise<
 }
 
 export function candleQuoteVolume(candles: Candle[], decimals: number): number {
-  return candles.reduce((sum, candle) => sum + Number(candle.quoteVolume) / 10 ** decimals, 0);
+  return candles.reduce((sum, candle) => sum + scaledNumber(candle.quoteVolume, decimals), 0);
 }
 
 export async function getDreamWalletSnapshot(market: DreamMarket, account: string): Promise<WalletSnapshot> {
@@ -120,18 +119,17 @@ export async function getDreamWalletSnapshot(market: DreamMarket, account: strin
     dreamdexExchange.client.getOutcomeBalance({ outcomeToken: onchain.outcomeToken, account: owner, id: onchain.noId }),
     dreamdexExchange.client.getErc20Metadata(onchain.collateral),
   ]);
-  const scale = 10 ** onchain.decimals;
-  const marketShares = Number(yesBalanceRaw + noBalanceRaw) / scale;
+  const marketShares = scaledNumber(yesBalanceRaw + noBalanceRaw, onchain.decimals);
   const indexedMarketShares = portfolio.positions
     .filter((position) => position.market.id.toLowerCase() === market.marketId.toLowerCase())
-    .reduce((sum, position) => sum + Number(position.balance) / 10 ** position.market.quoteDecimals, 0);
-  const indexedTotal = portfolio.positions.reduce((sum, position) => sum + Number(position.balance) / 10 ** position.market.quoteDecimals, 0);
-  const collateralBalance = Number(collateralBalanceRaw) / 10 ** metadata.decimals;
-  const collateralAllowance = Number(collateralAllowanceRaw) / 10 ** metadata.decimals;
+    .reduce((sum, position) => sum + scaledNumber(position.balance, position.market.quoteDecimals), 0);
+  const indexedTotal = portfolio.positions.reduce((sum, position) => sum + scaledNumber(position.balance, position.market.quoteDecimals), 0);
+  const collateralBalance = scaledNumber(collateralBalanceRaw, metadata.decimals);
+  const collateralAllowance = scaledNumber(collateralAllowanceRaw, metadata.decimals);
   return {
     marketShares,
     totalPortfolioShares: Math.max(0, indexedTotal - indexedMarketShares + marketShares),
-    sellBalance: Number(yesBalanceRaw) / scale,
+    sellBalance: scaledNumber(yesBalanceRaw, onchain.decimals),
     collateralBalance,
     collateralAllowance,
     collateralSymbol: metadata.symbol,

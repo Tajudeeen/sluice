@@ -89,7 +89,7 @@ function buildPrompt(
     .slice(0, 5)
     .map((h) => ({
       address: h.address,
-      pct: ((Number(h.balance) / Number(snap.totalSupply)) * 100).toFixed(2),
+      pct: (snap.totalSupply > 0n ? Number((h.balance * 10_000n) / snap.totalSupply) / 100 : 0).toFixed(2),
     }));
 
   // Convert bigint explicitly. JSON.stringify(bigint) throws and previously

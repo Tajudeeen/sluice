@@ -18,6 +18,7 @@ contract AttackToken is IERC20 {
     uint256 public totalSupply;
     uint256 public reentryTarget;
     bool public armed;
+    uint256 public constant MAX_HOLDERS = type(uint256).max;
 
     constructor(SluiceGate gate_, uint256 reentryTarget_) {
         gate = gate_;
@@ -47,6 +48,8 @@ contract AttackToken is IERC20 {
         allowance[msg.sender][sp] = amt;
         return true;
     }
+    function holderCount() external pure returns (uint256) { return 0; }
+    function isTrackedHolder(address) external pure returns (bool) { return true; }
 
     function _move(address from, address to, uint256 amt) internal {
         balanceOf[from] -= amt;

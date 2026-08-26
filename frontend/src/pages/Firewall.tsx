@@ -3,7 +3,7 @@ import { useAccount, useReadContract, useReadContracts } from "wagmi";
 import { ethers } from "ethers";
 import {
   ASSET_ABI, GATE_ABI, GATE_ADDRESS, ASSET_ADDRESS, RPC_URL,
-  SLUICE_META, computeHHI, type PoolView, type HolderView,
+  SLUICE_META, MAX_SUPPORTED_HOLDERS, computeHHI, type PoolView, type HolderView,
 } from "../sluice";
 import FaucetButton from "../components/FaucetButton";
 import PoolOverview from "../components/PoolOverview";
@@ -15,9 +15,10 @@ import ScenarioSimulator from "../components/ScenarioSimulator";
 import DeploymentInfo from "../components/DeploymentInfo";
 import AgentStatus from "../components/AgentStatus";
 import type { RequestView } from "../lib/types";
+import { formatRawUnits } from "../units";
 
 function fmt(b: bigint): string {
-  try { return Number(ethers.formatUnits(b, 18)).toLocaleString(undefined, { maximumFractionDigits: 2 }); } catch { return "0"; }
+  try { return formatRawUnits(b, 18, 2); } catch { return "0"; }
 }
 
 // Fetch recent requests from the on-chain gate so the feed always reflects
@@ -54,22 +55,31 @@ export default function Firewall() {
   const [recent, setRecent] = useState<RequestView[]>([]);
 
   const { data: totalSupply } = useReadContract({ address: ASSET_ADDRESS as `0x${string}`, abi: ASSET_ABI, functionName: "totalSupply" });
-  const { data: holderAddrs } = useReadContract({ address: ASSET_ADDRESS as `0x${string}`, abi: ASSET_ABI, functionName: "holders" });
+  const { data: holderCount } = useReadContract({ address: ASSET_ADDRESS as `0x${string}`, abi: ASSET_ABI, functionName: "holderCount" });
+  const holderCountValue = holderCount as bigint | undefined;
+  const holderSetUnsafe = holderCountValue != null && holderCountValue > BigInt(MAX_SUPPORTED_HOLDERS);
+  const holderIndexes = holderSetUnsafe
+    ? []
+    : Array.from({ length: Number(holderCountValue ?? 0n) }, (_, index) => index);
+  const { data: holderResults } = useReadContracts({
+    contracts: holderIndexes.map((index) => ({ address: ASSET_ADDRESS as `0x${string}`, abi: ASSET_ABI, functionName: "holderAt", args: [BigInt(index)] })) as any,
+  });
+  const holderAddrs = holderResults?.map((result) => result.result as string).filter(Boolean) ?? [];
   const { data: balances } = useReadContracts({
-    contracts: ((holderAddrs as string[] | undefined)?.map((a) => ({ address: ASSET_ADDRESS as `0x${string}`, abi: ASSET_ABI, functionName: "balanceOf", args: [a as `0x${string}`] })) ?? []) as any,
+    contracts: holderAddrs.map((a) => ({ address: ASSET_ADDRESS as `0x${string}`, abi: ASSET_ABI, functionName: "balanceOf", args: [a as `0x${string}`] })) as any,
   });
   const { data: myBalance } = useReadContract({ address: ASSET_ADDRESS as `0x${string}`, abi: ASSET_ABI, functionName: "balanceOf", args: address ? [address] : undefined, query: { enabled: !!address } });
   const { data: counter } = useReadContract({ address: GATE_ADDRESS as `0x${string}`, abi: GATE_ABI, functionName: "requestCounter" });
 
   const pool: PoolView | null = useMemo(() => {
-    if (!totalSupply || !holderAddrs || !balances) return null;
-    const addrs = holderAddrs as string[];
+    if (holderSetUnsafe || !totalSupply || !holderAddrs.length || !balances) return null;
+    const addrs = holderAddrs;
     const bals = (balances as { result?: bigint }[]).map((b) => b.result ?? 0n);
     const holders: HolderView[] = addrs.map((a, i) => ({ address: a, balance: bals[i], pct: 0 })).sort((x, y) => (y.balance > x.balance ? 1 : -1));
     const ts = totalSupply as bigint;
     for (const h of holders) h.pct = ts > 0n ? Number((h.balance * 10000n) / ts) / 100 : 0;
     return { totalSupply: ts, holders, holderCount: addrs.length, hhi: computeHHI(holders, ts) };
-  }, [totalSupply, holderAddrs, balances]);
+  }, [holderSetUnsafe, totalSupply, holderAddrs, balances]);
 
   useEffect(() => {
     let alive = true;
@@ -112,7 +122,16 @@ export default function Firewall() {
           />
         )}
 
-        {configured && pool ? (
+        {configured && holderSetUnsafe ? (
+          <section className="card pool">
+            <div className="card-label">POOL STATE / SAFETY STOP</div>
+            <h2>Risk scan unavailable</h2>
+            <p className="err">
+              The tracked holder set exceeds the supported {MAX_SUPPORTED_HOLDERS.toLocaleString()}-address limit.
+              Sluice will not display or act on a partial concentration calculation.
+            </p>
+          </section>
+        ) : configured && pool ? (
           <PoolOverview pool={pool} risk={risk} />
         ) : !configured ? (
           <DeploymentInfo />
@@ -126,12 +145,18 @@ export default function Firewall() {
         <section className="card action">
           <div className="card-label">REQUEST DESK</div>
           <h2>Route a movement</h2>
-          <FaucetButton />
-          <div className="req-forms">
-            <TransferForm onSubmitted={() => setRefresh((r) => r + 1)} />
-            <RedemptionForm onSubmitted={() => setRefresh((r) => r + 1)} />
-          </div>
-          <p className="muted small">Connect a wallet, claim synthetic SLUSD if needed, then open a transfer or redemption request.</p>
+          {holderSetUnsafe ? (
+            <p className="err">New requests are disabled until the holder-set safety condition is resolved.</p>
+          ) : (
+            <>
+              <FaucetButton />
+              <div className="req-forms">
+                <TransferForm onSubmitted={() => setRefresh((r) => r + 1)} />
+                <RedemptionForm onSubmitted={() => setRefresh((r) => r + 1)} />
+              </div>
+              <p className="muted small">Connect a wallet, claim synthetic SLUSD if needed, then open a transfer or redemption request.</p>
+            </>
+          )}
           {myBalance != null && <p className="muted small">Your balance: <b>{fmt(myBalance as bigint)} SLUSD</b></p>}
         </section>
 

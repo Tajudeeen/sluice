@@ -99,6 +99,30 @@ describe("SluiceAsset", () => {
     expect(await asset.totalSupply()).to.equal(TOTAL);
     expect(await asset.balanceOf(alice.address)).to.equal(ethers.parseUnits("350000", 18));
     expect(await asset.holderCount()).to.be.greaterThan(0);
+    expect(await asset.holderAt(0)).to.equal(alice.address);
+    expect(await asset.MAX_HOLDERS()).to.equal(256n);
+    expect(await asset.isTrackedHolder(alice.address)).to.equal(true);
+  });
+
+  it("caps holder growth and rejects new-recipient requests before escrow", async () => {
+    const { asset, gate, alice, bob, deployer } = await loadFixture(deployFixture);
+    const one = ethers.parseUnits("1", 18);
+
+    await asset.connect(alice).approve(await gate.getAddress(), one * 2n);
+    await gate.connect(alice).requestTransfer(bob.address, one); // tracks the gate
+
+    const current = Number(await asset.holderCount());
+    const cap = Number(await asset.MAX_HOLDERS());
+    for (let i = current; i < cap; i++) {
+      const address = ethers.getAddress(ethers.zeroPadValue(ethers.toBeHex(10_000 + i), 20));
+      await asset.connect(deployer).mint(address, one);
+    }
+
+    const fresh = "0x1111111111111111111111111111111111111111";
+    await expect(asset.connect(deployer).mint(fresh, one))
+      .to.be.revertedWithCustomError(asset, "HolderCapReached");
+    await expect(gate.connect(alice).requestTransfer(fresh, one))
+      .to.be.revertedWithCustomError(gate, "HolderCapReached");
   });
 
   it("blocks direct ERC-20 transfers (no bypass around the gate)", async () => {
@@ -128,6 +152,14 @@ describe("SluiceAsset", () => {
     const { asset, stranger } = await loadFixture(deployFixture);
     await expect(asset.setGate(stranger.address))
       .to.be.revertedWithCustomError(asset, "GateAlreadySet");
+  });
+
+  it("supports two-step transfer of mint administration to a multisig", async () => {
+    const { asset, deployer, stranger } = await loadFixture(deployFixture);
+    await asset.connect(deployer).transferOwnership(stranger.address);
+    expect(await asset.pendingOwner()).to.equal(stranger.address);
+    await asset.connect(stranger).acceptOwnership();
+    expect(await asset.owner()).to.equal(stranger.address);
   });
 
   it("allows the gate to move tokens", async () => {
@@ -317,6 +349,16 @@ describe("SluiceGate - settlement (authorization + attestation)", () => {
       .to.be.revertedWithCustomError(gate, "WrongDecision");
   });
 
+  it("rejects malformed attestation score and enum fields", async () => {
+    const { asset, gate, attester, alice, bob } = await loadFixture(deployFixture);
+    const amt = ethers.parseUnits("1", 18);
+    await asset.connect(alice).approve(await gate.getAddress(), amt);
+    await gate.connect(alice).requestTransfer(bob.address, amt);
+    const att = await makeAttestation(gate, attester, 1n, 0, { riskScore: 101 });
+    await expect(gate.connect(attester).approve(1, att))
+      .to.be.revertedWithCustomError(gate, "InvalidAttestationFields");
+  });
+
   it("prevents replay of the same attestation (no double settlement)", async () => {
     const { asset, gate, attester, alice, bob } = await loadFixture(deployFixture);
     const amt = ethers.parseUnits("100", 18);
@@ -396,10 +438,21 @@ describe("AttesterRegistry", () => {
     const { registry, deployer, attester, stranger } = await loadFixture(deployFixture);
     expect(await registry.isAttester(attester.address)).to.equal(true);
     await expect(registry.connect(stranger).addAttester(stranger.address))
-      .to.be.revertedWithCustomError(registry, "NotOwner");
+      .to.be.revertedWithCustomError(registry, "OwnableUnauthorizedAccount");
     await registry.connect(deployer).addAttester(stranger.address);
     expect(await registry.isAttester(stranger.address)).to.equal(true);
     await registry.connect(deployer).removeAttester(stranger.address);
     expect(await registry.isAttester(stranger.address)).to.equal(false);
+    expect(await registry.attesterCount()).to.equal(1);
+    await expect(registry.connect(deployer).removeAttester(attester.address))
+      .to.be.revertedWithCustomError(registry, "LastAttester");
+  });
+
+  it("supports two-step transfer of registry control to a multisig", async () => {
+    const { registry, deployer, stranger } = await loadFixture(deployFixture);
+    await registry.connect(deployer).transferOwnership(stranger.address);
+    expect(await registry.pendingOwner()).to.equal(stranger.address);
+    await registry.connect(stranger).acceptOwnership();
+    expect(await registry.owner()).to.equal(stranger.address);
   });
 });

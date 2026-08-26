@@ -45,9 +45,14 @@ npx wrangler secret put PROCESS_TOKEN
 ```
 
 Paste each value when prompted. Do not put these values in `wrangler.toml`, the frontend,
-or Git. The attester key must correspond to the authorized registry attester address:
+or Git. The attester key must correspond to an address currently registered in the
+deployed `AttesterRegistry`; read that address from the deployment artifact or the
+contract instead of copying it from an older deployment.
 
-`0x2818DA030a19Ac0e84e9bA64Fef1AF3941668871`
+`DEMO_ATTACKER_PRIVATE_KEY` is optional and should be provisioned only when the
+operator-only breach demo is enabled. For public-chain contract deployment, set
+the matching `DEMO_ATTACKER_ADDRESS` so the deploy script seeds that generated
+wallet. The repository's well-known Hardhat key is restricted to local networks.
 
 ## Test locally (optional)
 
@@ -64,6 +69,25 @@ Somnia chain id,
 available.
 
 ## Deploy
+
+### Automated production workflow
+
+The `Deploy settlement Worker` GitHub Actions workflow validates the Worker and
+deploys only through the protected `production` environment. Configure these
+GitHub environment secrets:
+
+- `CLOUDFLARE_API_TOKEN`: scoped to deploy this Worker.
+- `CLOUDFLARE_ACCOUNT_ID`: the target Cloudflare account.
+
+Configure the environment variable `SLUICE_WORKER_URL` with the deployed Worker
+origin, without `/health`. The workflow calls that URL after deployment and fails
+unless it returns `{ "ok": true }`.
+
+Runtime secrets such as `ATTESTER_PRIVATE_KEY` and `PROCESS_TOKEN` remain stored
+in Cloudflare. Provision them once with `wrangler secret put`; GitHub does not
+receive or print those values.
+
+### Manual deployment
 
 ```powershell
 npx wrangler deploy
@@ -91,3 +115,16 @@ Then rebuild and publish the Pages bundle using the repository's normal Pages wo
 
 The Worker can be redeployed after code changes with `npx wrangler deploy`; secrets remain
 stored in Cloudflare and are not included in Git.
+
+## Protocol ownership
+
+For any non-local contract deployment, set `PROTOCOL_OWNER_ADDRESS` to a multisig
+before running the deploy script. The script starts OpenZeppelin two-step ownership
+transfers for both `SluiceAsset` and `AttesterRegistry` and records the current and
+pending owners in the deployment artifact.
+
+The multisig must then call `acceptOwnership()` on both contracts. Until acceptance,
+the deployer remains owner. Verify `ownership.assetPendingOwner` and
+`ownership.registryPendingOwner` in the deployment artifact, complete both
+acceptance transactions, and confirm each contract's `owner()` is the multisig
+before treating the deployment as released.

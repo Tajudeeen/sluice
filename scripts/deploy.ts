@@ -37,13 +37,11 @@ function distribution(): { addr: string; amount: bigint }[] {
   return w.map((x) => ({ addr: "", amount: ethers.parseUnits(String(x), 18) }));
 }
 
-// Predefined SYNTHETIC demo-attacker wallet for the "concentration attack"
-// simulator. This is Hardhat's well-known test account #1: it controls NO real
-// funds and ONLY ever holds synthetic SLUSD. Protected Worker/local tooling may
-// use the key for an on-chain proof; the browser receives only its public
-// address. It is never the attester and never touches mainnet funds.
-export const DEMO_ATTACKER_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
-export const DEMO_ATTACKER_ADDRESS = new ethers.Wallet(DEMO_ATTACKER_KEY).address;
+// Hardhat's well-known test account #1 is allowed only on local networks.
+// Public deployments must supply a separately generated DEMO_ATTACKER_ADDRESS;
+// the corresponding key stays in the Worker secret store.
+export const LOCAL_DEMO_ATTACKER_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+export const LOCAL_DEMO_ATTACKER_ADDRESS = new ethers.Wallet(LOCAL_DEMO_ATTACKER_KEY).address;
 // The attack CONSOLIDATES the attacker's stake into the largest holder (holder A
 // = Hardhat signer #3), pushing that holder past the 50% largest-holder hard
 // block. This is a fixed, predefined target (never arbitrary addresses: §28).
@@ -58,6 +56,7 @@ export const ATTACK_AMOUNT = ethers.parseUnits("900000", 18);
 async function main() {
   const hre: any = await import("hardhat");
   const networkName = hre.network.name;
+  const isLocalNetwork = networkName === "hardhat" || networkName === "localhost";
   const [deployer] = await hre.ethers.getSigners();
 
   // Fail fast (with a clear message) if the deployer has no gas, instead of
@@ -78,13 +77,11 @@ async function main() {
   let attesterAddr: string;
   if (process.env.ATTESTER_PRIVATE_KEY) {
     attesterAddr = new ethers.Wallet(process.env.ATTESTER_PRIVATE_KEY).address;
-  } else if (networkName === "hardhat" || networkName === "localhost") {
+  } else if (isLocalNetwork) {
     const signers = await hre.ethers.getSigners();
     attesterAddr = signers[1].address;
   } else {
-    const accounts = (hre.network.config.accounts as string[]) || [];
-    if (!accounts[1]) throw new Error("ATTESTER_PRIVATE_KEY / second account missing for this network");
-    attesterAddr = new ethers.Wallet(accounts[1]).address;
+    throw new Error("ATTESTER_PRIVATE_KEY is required for non-local deployments");
   }
   console.log(`Network: ${networkName}`);
   console.log(`Deployer: ${deployer.address}`);
@@ -120,7 +117,7 @@ async function main() {
   if (DEMO_HOLDERS_ENV.length >= dist.length) {
     targets = DEMO_HOLDERS_ENV.slice(0, dist.length);
     holderA = targets[0];
-  } else if (networkName === "hardhat" || networkName === "localhost") {
+  } else if (isLocalNetwork) {
     const signers = await hre.ethers.getSigners();
     // signers[3..8] -> alice, bob, carol, dave, eve, stranger (mirrors the tests).
     // Holder A (signers[3]) is the largest at 35% and is the attack's consolidation
@@ -152,18 +149,37 @@ async function main() {
     console.log(`  minted remaining ${ethers.formatUnits(remainder, 18)} SLUSD -> ${deployer.address}`);
   }
 
-  // Seed the SYNTHETIC demo-attacker wallet (Hardhat test account #1) so
-  // protected Worker/local tooling can originate an on-chain request that
-  // breaches the HHI hard-block. Synthetic SLUSD only: no real value.
-  const attackSeed = ATTACK_AMOUNT;
-  {
-    const tx = await asset.mint(DEMO_ATTACKER_ADDRESS, attackSeed);
+  const configuredDemoAttacker = process.env.DEMO_ATTACKER_ADDRESS?.trim();
+  if (configuredDemoAttacker && (!ethers.isAddress(configuredDemoAttacker) || configuredDemoAttacker === ethers.ZeroAddress)) {
+    throw new Error("DEMO_ATTACKER_ADDRESS must be a non-zero address");
+  }
+  const demoAttackerAddress = isLocalNetwork ? LOCAL_DEMO_ATTACKER_ADDRESS : configuredDemoAttacker;
+
+  // Seed the synthetic breach-test wallet only when one is explicitly configured
+  // for a public deployment. Never use a well-known test key on a public chain.
+  if (demoAttackerAddress) {
+    const attackSeed = ATTACK_AMOUNT;
+    const tx = await asset.mint(demoAttackerAddress, attackSeed);
     await tx.wait();
-    console.log(`  minted ${ethers.formatUnits(attackSeed, 18)} SLUSD -> DEMO_ATTACKER ${DEMO_ATTACKER_ADDRESS}`);
+    console.log(`  minted ${ethers.formatUnits(attackSeed, 18)} SLUSD -> DEMO_ATTACKER ${demoAttackerAddress}`);
+  } else {
+    console.warn("DEMO_ATTACKER_ADDRESS is not set; skipping the transaction-writing breach demo seed.");
   }
 
   console.log(`Total supply: ${ethers.formatUnits(await asset.totalSupply(), 18)} SLUSD`);
   console.log(`Holder count: ${await asset.holderCount()}`);
+
+  const protocolOwner = process.env.PROTOCOL_OWNER_ADDRESS;
+  if (protocolOwner) {
+    if (!ethers.isAddress(protocolOwner) || protocolOwner === ethers.ZeroAddress) {
+      throw new Error("PROTOCOL_OWNER_ADDRESS must be a non-zero address");
+    }
+    await (await asset.transferOwnership(protocolOwner)).wait();
+    await (await registry.transferOwnership(protocolOwner)).wait();
+    console.log(`Protocol ownership transfer pending acceptance by ${protocolOwner}`);
+  } else if (networkName !== "hardhat" && networkName !== "localhost") {
+    console.warn("PROTOCOL_OWNER_ADDRESS is not set; deployer retains asset mint and registry administration.");
+  }
 
   // 5) Persist deployment artifacts.
   const out = {
@@ -171,6 +187,13 @@ async function main() {
     chainId: hre.network.config.chainId,
     deployedAt: new Date().toISOString(),
     attester: attesterAddr,
+    protocolOwner: protocolOwner || deployer.address,
+    ownership: {
+      assetOwner: await asset.owner(),
+      assetPendingOwner: await asset.pendingOwner(),
+      registryOwner: await registry.owner(),
+      registryPendingOwner: await registry.pendingOwner(),
+    },
     asset: await asset.getAddress(),
     registry: await registry.getAddress(),
     gate: await gate.getAddress(),
@@ -192,16 +215,16 @@ async function main() {
   console.log(`VITE_GATE_ADDRESS=${await gate.getAddress()}`);
   console.log(`VITE_ATTESTER_ADDRESS=${attesterAddr}`);
   console.log(`VITE_CHAIN_ID=${hre.network.config.chainId}`);
-  if (hre.network.name === "hardhat" || hre.network.name === "localhost") {
-    console.log(`VITE_DEMO_ATTACKER_ADDRESS=${DEMO_ATTACKER_ADDRESS}`);
+  if (demoAttackerAddress) {
+    console.log(`VITE_DEMO_ATTACKER_ADDRESS=${demoAttackerAddress}`);
   }
   console.log(`--- .env (agent + simulator) ---`);
   console.log(`# Set ATTESTER_PRIVATE_KEY securely; its public address is ${attesterAddr}`);
   console.log(`SLUICE_GATE_ADDRESS=${await gate.getAddress()}`);
   console.log(`SLUICE_ASSET_ADDRESS=${await asset.getAddress()}`);
-  if (hre.network.name === "hardhat" || hre.network.name === "localhost") {
+  if (isLocalNetwork) {
     console.log(`# SYNTHETIC demo-attacker key (Hardhat test account #1) for the concentration-attack simulator only.`);
-    console.log(`DEMO_ATTACKER_PRIVATE_KEY=${DEMO_ATTACKER_KEY}`);
+    console.log(`DEMO_ATTACKER_PRIVATE_KEY=${LOCAL_DEMO_ATTACKER_KEY}`);
   }
 
   // Emit a ready-to-use frontend build env (.env.frontend) so the hosted build
@@ -223,8 +246,8 @@ async function main() {
     `VITE_GATE_ADDRESS=${await gate.getAddress()}`,
     `VITE_ATTESTER_ADDRESS=${attesterAddr}`,
   ];
-  if (hre.network.name !== "hardhat" && hre.network.name !== "localhost") {
-    feLines.push(`VITE_DEMO_ATTACKER_ADDRESS=${DEMO_ATTACKER_ADDRESS}`);
+  if (demoAttackerAddress) {
+    feLines.push(`VITE_DEMO_ATTACKER_ADDRESS=${demoAttackerAddress}`);
   }
   fs.writeFileSync(path.join("artifacts", "deployment.frontend.env"), feLines.join("\n") + "\n");
   console.log(`\nWrote frontend build env to artifacts/deployment.frontend.env`);
