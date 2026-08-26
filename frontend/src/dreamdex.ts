@@ -1,4 +1,4 @@
-import { SomniaMarkets, SOMNIA_TESTNET_ADDRESSES, type BinaryMarket, type UnifiedOrderBook, type Candle } from "@somnia-chain/markets-sdk";
+import { SomniaMarkets, SOMNIA_TESTNET_ADDRESSES, type BinaryMarket, type UnifiedOrderBook, type Candle, type OrderRow, type PortfolioPosition } from "@somnia-chain/markets-sdk";
 import { somniaShannon } from "@somnia-chain/markets-sdk/chains";
 import type { Address, Hex } from "viem";
 import { scaledNumber } from "./units";
@@ -46,6 +46,20 @@ export type PredictionOutcome = { label: "PENDING" | "WON" | "LOST" | "VOID / RE
 /** Return a timestamped collection newest-first without mutating the source. */
 export function newestFirst<T>(values: readonly T[], timestamp: (value: T) => string | number): T[] {
   return [...values].sort((a, b) => Number(timestamp(b)) - Number(timestamp(a)));
+}
+
+/** Put positions for markets with the newest recorded order first. */
+export function positionsByLatestOrder(positions: readonly PortfolioPosition[], orders: readonly Pick<OrderRow, "market" | "placedAtTimestamp">[]): PortfolioPosition[] {
+  const latestByMarket = new Map<string, number>();
+  for (const order of orders) {
+    const market = order.market.toLowerCase();
+    const timestamp = Number(order.placedAtTimestamp);
+    if (Number.isFinite(timestamp) && timestamp > (latestByMarket.get(market) ?? -Infinity)) latestByMarket.set(market, timestamp);
+  }
+  return positions
+    .map((position, index) => ({ position, index, latest: latestByMarket.get(position.market.id.toLowerCase()) ?? -Infinity }))
+    .sort((a, b) => b.latest - a.latest || a.index - b.index)
+    .map(({ position }) => position);
 }
 
 /** Interpret DreamDEX settlement fields without assuming one exact finalized status label. */

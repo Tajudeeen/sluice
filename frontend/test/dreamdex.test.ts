@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Candle, UnifiedOrderBook } from "@somnia-chain/markets-sdk";
 import type { DreamMarket, WalletSnapshot } from "../src/dreamdex";
-import { candleQuoteVolume, executionPreview, marketCategory, newestFirst, predictionOutcome, safeOrderSize } from "../src/dreamdex";
+import { candleQuoteVolume, executionPreview, marketCategory, newestFirst, positionsByLatestOrder, predictionOutcome, safeOrderSize } from "../src/dreamdex";
 import { formatRawUnits, scaledNumber } from "../src/units";
 
 const market = {
@@ -101,6 +101,20 @@ describe("newestFirst", () => {
     const source = [{ id: "old", at: "10" }, { id: "new", at: "30" }, { id: "mid", at: "20" }];
     expect(newestFirst(source, (row) => row.at).map((row) => row.id)).toEqual(["new", "mid", "old"]);
     expect(source.map((row) => row.id)).toEqual(["old", "new", "mid"]);
+  });
+});
+
+describe("positionsByLatestOrder", () => {
+  it("puts the position touched by the newest order first", () => {
+    const positions = [
+      { market: { id: "0xold" } },
+      { market: { id: "0xnew" } },
+    ] as any;
+    const orders = [
+      { market: "0xold", placedAtTimestamp: "30" },
+      { market: "0xnew", placedAtTimestamp: "40" },
+    ] as any;
+    expect(positionsByLatestOrder(positions, orders).map((position) => position.market.id)).toEqual(["0xnew", "0xold"]);
   });
 });
 
