@@ -859,5 +859,35 @@ button.danger:hover { background: var(--ink); box-shadow: 4px 4px 0 var(--bad); 
 .portfolio-empty { margin: 28px 0; padding: 30px; border: 1px dashed var(--line-strong); text-align: center; }
 .portfolio-empty b { font: 800 14px/1 var(--mono); }
 .portfolio-empty p { max-width: 560px; margin: 12px auto 0; color: var(--slate); font-size: 13px; line-height: 1.5; }
+/* ---- EIP-6963 wallet extension picker ---- */
+.wallet-picker-overlay {
+  position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
+  background: rgba(23, 59, 51, .42); backdrop-filter: blur(2px); padding: 20px;
+  animation: picker-in .15s ease;
+}
+@keyframes picker-in { from { opacity: 0; } to { opacity: 1; } }
+.wallet-picker {
+  width: min(360px, 100%); background: var(--paper); border: 1px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--signal); padding: 20px;
+}
+.wallet-picker-head { display: flex; align-items: center; justify-content: space-between; }
+.wallet-picker-head strong { font: 800 13px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.wallet-picker-close { border: 0; background: transparent; color: var(--ink); font: 700 22px/1 var(--sans); cursor: pointer; padding: 0 4px; line-height: 1; }
+.wallet-picker-close:hover { color: var(--bad); }
+.wallet-picker-sub { margin: 8px 0 16px; color: var(--slate); font-size: 12px; line-height: 1.45; }
+.wallet-picker-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+.wallet-picker-option {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  padding: 11px 12px; background: var(--white); border: 1px solid var(--line-strong);
+  color: var(--ink); cursor: pointer; font: 700 13px/1 var(--mono);
+}
+.wallet-picker-option:hover { background: var(--acid); box-shadow: 3px 3px 0 var(--ink); transform: translate(1px, 1px); }
+.wallet-picker-option:active { transform: translate(3px, 3px); box-shadow: none; }
+.wallet-picker-option--fallback { color: var(--ink-soft); }
+.wallet-picker-icon { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; background: var(--paper-deep); flex: 0 0 auto; }
+.wallet-picker-icon--fallback { background: var(--line); position: relative; }
+.wallet-picker-icon--fallback::after { content: ""; position: absolute; inset: 8px; border: 2px solid var(--slate); border-radius: 3px; }
+.wallet-picker-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 @media (max-width: 1100px) { .dream-grid { grid-template-columns: 1fr 1fr; } .trade-ticket { grid-column: 1 / -1; } }
 @media (max-width: 720px) { .dream-grid { grid-template-columns: 1fr; } .trade-ticket { grid-column: auto; } .market-row { grid-template-columns: 1fr auto; } .market-row i { display: none; } .position-row { grid-template-columns: 1fr auto; } .position-row i { grid-column: 2; grid-row: 1; } .market-metrics { grid-template-columns: 1fr 1fr; } .market-metrics > div:nth-child(2) { border-right: 0; } .market-metrics > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); } .portfolio-head { flex-direction: column; } .portfolio-tabs { grid-template-columns: 1fr; } .portfolio-tabs button { border-right: 0; border-bottom: 1px solid var(--ink); } .portfolio-tabs button:last-child { border-bottom: 0; } .activity-row { grid-template-columns: 1fr; gap: 12px; } .safe-size { align-items: stretch; flex-direction: column; } .safe-size .ghost { width: 100%; } }
