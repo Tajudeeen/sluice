@@ -45,6 +45,29 @@ npm run frontend
 
 The frontend defaults to DreamDEX's public Shannon endpoints. Copy `.env.example` to `frontend/.env` only when overriding those endpoints.
 
+## Wallet connection
+
+The connect button (top-right of every page) opens a picker built from
+wagmi's live connector list, so the same control works on desktop browser
+extensions and mobile browsers:
+
+- **Browser extensions (desktop):** every EIP-6963 wallet that announces
+  itself is auto-discovered and listed — MetaMask, Rabby, OKX, Brave,
+  Trust, Coinbase, and others. No setup required.
+- **Coinbase Wallet:** registered via the `coinbaseWallet` connector; opens
+  the Coinbase app on mobile, no credentials needed.
+- **Mobile QR / deep-link (optional):** set `VITE_WALLETCONNECT_PROJECT_ID`
+  (a free projectId from https://cloud.reown.com) to enable the WalletConnect
+  connector, which shows a QR code that any mobile wallet can scan. Without
+  it the mobile QR option is hidden but Coinbase still works on phones.
+
+After connecting, the picker auto-switches or prompts you to add **Somnia
+Shannon Testnet (chainId 50312)** if the wallet is on another network. The
+UI is theme-aware: the picker adapts its text and surfaces to light/dark mode.
+
+See `.env.example` for the full variable list, including
+`VITE_WALLETCONNECT_PROJECT_ID`.
+
 ## Verification
 
 ```bash
