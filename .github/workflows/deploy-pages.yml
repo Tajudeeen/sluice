@@ -50,6 +50,16 @@ jobs:
         run: npm run test:agent
       - name: Test contracts
         run: npm test
+      - name: Inject SluiceGate contract addresses
+        # Public Sluice contract addresses (not secrets). Vite inlines VITE_* at
+        # build time from frontend/.env, which lights up the on-chain SluiceGate
+        # enforcement layer in the live build. Set these in repo Settings -> Secrets.
+        run: |
+          if [ -z "${{ secrets.VITE_GATE_ADDRESS }}" ] || [ -z "${{ secrets.VITE_ASSET_ADDRESS }}" ]; then
+            echo "::error::VITE_GATE_ADDRESS / VITE_ASSET_ADDRESS secrets are not set. Configure them in repo Settings -> Secrets so the live build enables SluiceGate." >&2
+            exit 1
+          fi
+          printf 'VITE_GATE_ADDRESS=%s\nVITE_ASSET_ADDRESS=%s\n' "${{ secrets.VITE_GATE_ADDRESS }}" "${{ secrets.VITE_ASSET_ADDRESS }}" > frontend/.env
       - name: Build DreamDEX frontend
         run: npm run frontend:build -- --base=/sluice/
 

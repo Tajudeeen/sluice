@@ -43,7 +43,27 @@ npm run frontend
 # open http://localhost:5173/sluice/
 ```
 
-The frontend defaults to DreamDEX's public Shannon endpoints. Copy `.env.example` to `frontend/.env` only when overriding those endpoints.
+The frontend defaults to DreamDEX's public Shannon endpoints. Copy
+`.env.example` to `frontend/.env` only when overriding those endpoints.
+
+### Enabling the on-chain SluiceGate layer
+
+The flagship "downside-capped Safe Size" enforcement runs through the
+SluiceGate + SluiceAsset contracts. The deployed GitHub Pages build reads
+`VITE_GATE_ADDRESS` and `VITE_ASSET_ADDRESS` at build time (from
+`frontend/.env`). These are configured as CI secrets so the live build is
+fully on-chain:
+
+- GitHub → repo **Settings → Secrets and variables → Actions** → add
+  `VITE_GATE_ADDRESS` and `VITE_ASSET_ADDRESS` (the public Sluice contract
+  addresses; see `wrangler.toml`).
+- The Pages workflow (`deploy-pages.yml`) injects them into `frontend/.env`
+  before building and fails the deploy if either is missing.
+
+For local development, copy `.env.example` to `frontend/.env` and set the
+two addresses there. When they are absent, the UI detects
+`CONFIGURED = false` and shows the gate as not configured rather than
+pretending to be on-chain.
 
 ## Wallet connection
 
