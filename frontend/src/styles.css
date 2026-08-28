@@ -889,5 +889,19 @@ button.danger:hover { background: var(--ink); box-shadow: 4px 4px 0 var(--bad); 
 .wallet-picker-icon--fallback::after { content: ""; position: absolute; inset: 8px; border: 2px solid var(--slate); border-radius: 3px; }
 .wallet-picker-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Dark-mode adaptation: invert the picker surfaces/text so labels stay legible. */
+:root[data-theme="dark"] .wallet-picker-overlay { background: rgba(0, 0, 0, .55); }
+:root[data-theme="dark"] .wallet-picker { background: #15161a; border-color: #f5f7f1; box-shadow: 6px 6px 0 var(--signal); }
+:root[data-theme="dark"] .wallet-picker-head strong { color: #f5f7f1; }
+:root[data-theme="dark"] .wallet-picker-close { color: #f5f7f1; }
+:root[data-theme="dark"] .wallet-picker-close:hover { color: var(--bad); }
+:root[data-theme="dark"] .wallet-picker-sub { color: #b8bbb1; }
+:root[data-theme="dark"] .wallet-picker-option { background: #20221c; border-color: #4a4d44; color: #f5f7f1; }
+:root[data-theme="dark"] .wallet-picker-option:hover { background: var(--signal); color: #10231f; box-shadow: 3px 3px 0 #f5f7f1; }
+:root[data-theme="dark"] .wallet-picker-option--fallback { color: #c7bddf; }
+:root[data-theme="dark"] .wallet-picker-icon { background: #2c2e27; }
+:root[data-theme="dark"] .wallet-picker-icon--fallback { background: #2c2e27; }
+:root[data-theme="dark"] .wallet-picker-icon--fallback::after { border-color: #c7bddf; }
+
 @media (max-width: 1100px) { .dream-grid { grid-template-columns: 1fr 1fr; } .trade-ticket { grid-column: 1 / -1; } }
 @media (max-width: 720px) { .dream-grid { grid-template-columns: 1fr; } .trade-ticket { grid-column: auto; } .market-row { grid-template-columns: 1fr auto; } .market-row i { display: none; } .position-row { grid-template-columns: 1fr auto; } .position-row i { grid-column: 2; grid-row: 1; } .market-metrics { grid-template-columns: 1fr 1fr; } .market-metrics > div:nth-child(2) { border-right: 0; } .market-metrics > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); } .portfolio-head { flex-direction: column; } .portfolio-tabs { grid-template-columns: 1fr; } .portfolio-tabs button { border-right: 0; border-bottom: 1px solid var(--ink); } .portfolio-tabs button:last-child { border-bottom: 0; } .activity-row { grid-template-columns: 1fr; gap: 12px; } .safe-size { align-items: stretch; flex-direction: column; } .safe-size .ghost { width: 100%; } }
