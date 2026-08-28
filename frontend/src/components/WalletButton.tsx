@@ -1,52 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from "wagmi";
-import { injected } from "wagmi/connectors";
 import { shortAddr } from "../sluice";
 import { DREAMDEX_CHAIN_ID, DREAMDEX_EXPLORER_URL, DREAMDEX_RPC_URLS } from "../dreamdex";
 
-// ---- EIP-6963 multi-wallet discovery ---------------------------------------
-// Rather than blindly grabbing whatever extension set `window.ethereum` (which
-// silently favours one wallet when several are installed), we announce for and
-// collect every EIP-6963-compatible wallet extension (MetaMask, Rabby, Coinbase
-// Wallet, OKX, Brave, BlockWallet, Trust, etc.) and let the user pick. Works in
-// any browser that supports wallet extensions.
-interface Eip6963ProviderInfo {
-  uuid: string;
-  name: string;
-  icon: string; // data URI
-  rdns: string;
-}
-interface DiscoveredWallet {
-  info: Eip6963ProviderInfo;
-  provider: unknown;
-}
-
-function useWalletExtensions() {
-  const [wallets, setWallets] = useState<DiscoveredWallet[]>([]);
-  useEffect(() => {
-    const found = new Map<string, DiscoveredWallet>();
-    const onAnnounce = (event: Event) => {
-      const detail = (event as CustomEvent).detail as { info: Eip6963ProviderInfo; provider: unknown };
-      if (!detail?.info?.uuid) return;
-      found.set(detail.info.uuid, { info: detail.info, provider: detail.provider });
-      setWallets(Array.from(found.values()));
-    };
-    window.addEventListener("eip6963:announceProvider", onAnnounce as EventListener);
-    // Ask every installed extension to announce itself.
-    window.dispatchEvent(new Event("eip6963:requestProvider"));
-    return () => window.removeEventListener("eip6963:announceProvider", onAnnounce as EventListener);
-  }, []);
-  return wallets;
-}
-
 // Reusable connect/disconnect control. Used in the site nav on every page.
+//
+// The picker is built from wagmi's `connectors` list, which automatically
+// includes:
+//   - every EIP-6963 browser wallet extension that announces itself
+//     (MetaMask, Rabby, OKX, Brave, Trust, ...) on desktop,
+//   - the generic injected() fallback ("Browser Wallet"),
+//   - Coinbase Wallet (also opens on mobile),
+//   - WalletConnect (QR / deep-link to any mobile wallet) when a Reown
+//     projectId is configured.
+// This means the same control works on desktop extensions AND mobile browsers.
 export default function WalletButton() {
   const { address, isConnected } = useAccount();
-  const { connectAsync } = useConnect();
+  const { connectAsync, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChainAsync } = useSwitchChain();
   const walletChainId = useChainId();
-  const extensions = useWalletExtensions();
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const shannonParams = {
@@ -68,20 +41,10 @@ export default function WalletButton() {
     }
   }
 
-  const connectWithProvider = useCallback(
-    async (target: { id: string; name: string; provider?: unknown } | undefined) => {
+  const connectWith = useCallback(
+    async (connector: (typeof connectors)[number]) => {
       try {
-        if (target) {
-          await connectAsync({
-            connector: injected({
-              target: { id: target.id, name: target.name, provider: target.provider as any },
-            }),
-          });
-        } else {
-          // Fallback: generic injected() for browsers/extensions that don't
-          // announce via EIP-6963 (older extensions, plain window.ethereum).
-          await connectAsync({ connector: injected() });
-        }
+        await connectAsync({ connector });
         await ensureDreamdexChain();
       } catch (err) {
         console.error("Wallet connection/network switch failed", err);
@@ -89,17 +52,8 @@ export default function WalletButton() {
         setPickerOpen(false);
       }
     },
-    [connectAsync]
+    [connectAsync, connectors]
   );
-
-  function openPicker() {
-    // No extensions announced? Go straight to the generic injected provider.
-    if (extensions.length === 0) {
-      connectWithProvider(undefined);
-      return;
-    }
-    setPickerOpen(true);
-  }
 
   async function switchWalletNetwork() {
     try {
@@ -150,30 +104,32 @@ export default function WalletButton() {
 
   return (
     <>
-      <button className="primary" onClick={openPicker}>
+      <button className="primary" onClick={() => setPickerOpen(true)}>
         Connect Wallet
       </button>
 
       {pickerOpen && (
         <div className="wallet-picker-overlay" onClick={() => setPickerOpen(false)} role="presentation">
-          <div className="wallet-picker" role="dialog" aria-modal="true" aria-label="Connect a wallet extension" onClick={(e) => e.stopPropagation()}>
+          <div className="wallet-picker" role="dialog" aria-modal="true" aria-label="Connect a wallet" onClick={(e) => e.stopPropagation()}>
             <div className="wallet-picker-head">
               <strong>Connect a wallet</strong>
               <button className="wallet-picker-close" aria-label="Close" onClick={() => setPickerOpen(false)}>×</button>
             </div>
-            <p className="wallet-picker-sub">Choose a browser wallet extension to continue.</p>
+            <p className="wallet-picker-sub">Choose how you want to connect.</p>
             <div className="wallet-picker-list">
-              {extensions.map((w) => (
-                <button key={w.info.uuid} className="wallet-picker-option" onClick={() => connectWithProvider({ id: w.info.uuid, name: w.info.name, provider: w.provider })}>
-                  {w.info.icon ? <img src={w.info.icon} alt="" className="wallet-picker-icon" /> : <span className="wallet-picker-icon wallet-picker-icon--fallback" />}
-                  <span className="wallet-picker-name">{w.info.name}</span>
-                </button>
-              ))}
-              <button className="wallet-picker-option wallet-picker-option--fallback" onClick={() => connectWithProvider(undefined)}>
-                <span className="wallet-picker-icon wallet-picker-icon--fallback" />
-                <span className="wallet-picker-name">Browser wallet</span>
-              </button>
+              {connectors.map((c) => {
+                const label = c.id === "injected" ? "Browser Wallet" : c.name;
+                return (
+                  <button key={c.uid} className="wallet-picker-option" onClick={() => connectWith(c)}>
+                    {c.icon ? <img src={c.icon} alt="" className="wallet-picker-icon" /> : <span className="wallet-picker-icon wallet-picker-icon--fallback" />}
+                    <span className="wallet-picker-name">{label}</span>
+                  </button>
+                );
+              })}
             </div>
+            {connectors.length === 0 && (
+              <p className="wallet-picker-sub">No wallet found. Install a browser wallet extension, or configure a WalletConnect projectId to connect from mobile.</p>
+            )}
           </div>
         </div>
       )}
