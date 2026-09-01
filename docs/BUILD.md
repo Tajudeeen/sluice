@@ -129,7 +129,13 @@ SDK:
 - **Trade ticket** — buy/sell UP, share amount (0.001–25), limit probability,
   and for buys, a maximum-downside budget in tUSDC.
 - **Safe Size** — the largest order within the loss budget and all live
-  limits. One-click "Use safe size" populates the share field.
+  limits. One-click "Use safe size" populates the share field. The inline
+  explanation names the binding constraint dimension.
+- **5-dimension risk heatmap** — a compact structural risk breakdown
+  (Market, Liquidity, Exposure, Collateral, Control) displayed alongside the
+  risk score in the trade ticket.
+- **Visual depth ladder** — a price-level ladder with cumulative depth bars
+  and a slider that snaps to executable levels.
 - **Execution preview** — a per-check panel showing PASS/WARN/BLOCK for every
   policy gate: market status, book freshness, position size, book liquidity,
   spread, price impact, maximum downside, time to expiry, tail pricing,
@@ -170,13 +176,13 @@ of hard guarantees, three value-prop pillars, a feature band, and a trust band.
 The footer links to live markets, the portfolio, the architecture page, and the
 Somnia Shannon explorer.
 
-### 4.5 Legacy escrow firewall (`/firewall`)
+### 4.5 Legacy escrow firewall (archived)
 
-The earlier synthetic escrow/polygon-concentration demo. This page is retained
-for historical reference and is **not** part of the submitted DreamDEX product.
-It demonstrates the SluiceGate + SluiceAsset contract path: a request →
-escrow → off-chain attester decision → on-chain approve/block → settle/refund/
-timeout loop. See [Section 9](#9-on-chain-enforcement-sluicegate) and
+The earlier synthetic escrow / concentration-policing demo. The live product
+no longer routes to this page — it is retained only as a documented reference
+for the SluiceGate + SluiceAsset contract path: a request → escrow →
+on-chain attester decision → on-chain approve/block → settle/refund/timeout
+loop. See [Section 9](#9-on-chain-enforcement-sluicegate) and
 `docs/LEGACY-FIREWALL.md`.
 
 ---
@@ -407,6 +413,25 @@ PASS or WARN, and the cumulative risk score is below 70.
 
 The risk score starts at 0 and accumulates penalty weight for each failing or
 elevated check. A score of 70+ or any BLOCK check prevents execution.
+
+### 5-dimension structural risk scoring
+
+Each check is tagged to one of five risk dimensions (inspired by structural
+risk taxonomies used in institutional trading). The execution preview breaks
+down the cumulative risk score across these dimensions so traders can see
+exactly which category is driving the verdict:
+
+| Dimension | Checks | Meaning |
+|-----------|--------|---------|
+| **Market** | Market status, Maximum downside, Time to expiry, Tail pricing | Contract and temporal health |
+| **Liquidity** | Book freshness, Book liquidity, Spread, Price impact | Depth and cost to trade |
+| **Exposure** | Position size, Market exposure, Portfolio exposure | Position concentration |
+| **Collateral** | UP balance, Collateral, Token/operator approval | Wallet feasibility |
+| **Control** | Wallet feasibility | Cross-cutting sign authorization |
+
+The trade ticket renders a compact 5-dimension risk heatmap alongside the
+risk score, and the Safe Size inline explanation names the binding dimension
+(e.g., "bounded by Liquidity: Only 3.120 shares available at this limit").
 
 ---
 

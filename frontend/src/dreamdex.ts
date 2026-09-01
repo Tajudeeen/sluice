@@ -31,6 +31,17 @@ export type ExecutionPreview = {
   slippageBps: number | null;
   spreadBps: number | null;
   visibleDepth: number;
+  /** Structured 5-dimension risk breakdown for the Safe Size preview.
+   *  Each dimension scores 0 (safe) to 100 (critical), with BLOCK-level checks. */
+  dimensions: RiskDimensions;
+};
+export type RiskDimension = { name: string; score: number; status: "pass" | "warn" | "block" };
+export type RiskDimensions = {
+  market: RiskDimension;      // status, expiry, tail pricing
+  liquidity: RiskDimension;   // book freshness, depth, spread, impact
+  exposure: RiskDimension;    // position size, market/portfolio exposure
+  collateral: RiskDimension; // UP balance, collateral, token approval
+  control: RiskDimension;     // wallet feasibility (cross-cuts all)
 };
 export type WalletSnapshot = {
   marketShares: number;
@@ -186,6 +197,8 @@ function formatPct(value: number): string { return `${(value * 100).toFixed(2)}%
 export function executionPreview(market: DreamMarket, book: UnifiedOrderBook | null, amount: number, requestedPrice: number, side: "buy" | "sell", wallet?: WalletSnapshot | null, policy: { maxCost?: number } = {}): ExecutionPreview {
   const checks: RiskCheck[] = [];
   let score = 0;
+  // Per-dimension penalty trackers (each caps at 100).
+  let dimMarket = 0, dimLiquidity = 0, dimExposure = 0, dimCollateral = 0, dimControl = 0;
   const levels = side === "buy" ? (book?.asks || []) : (book?.bids || []);
   const bestBid = book?.bids?.[0]?.[0] ?? null;
   const bestAsk = book?.asks?.[0]?.[0] ?? null;
@@ -208,47 +221,124 @@ export function executionPreview(market: DreamMarket, book: UnifiedOrderBook | n
   const estimatedCost = estimatedFill == null ? null : estimatedFill * amount;
   const slippageBps = estimatedFill != null && bestPrice != null ? Math.abs(estimatedFill - bestPrice) / bestPrice * 10_000 : null;
 
-  if (!market.live || market.status !== "Trading") { score += 100; checks.push({ label: "Market status", status: "block", detail: `Market is ${market.status}, not Trading` }); }
+  if (!market.live || market.status !== "Trading") { score += 100; dimMarket += 100; checks.push({ label: "Market status", status: "block", detail: `Market is ${market.status}, not Trading` }); }
   else checks.push({ label: "Market status", status: "pass", detail: "Trading on Somnia Shannon" });
   const bookAge = book?.timestamp == null ? Infinity : Date.now() - book.timestamp;
-  if (!book || !Number.isFinite(bookAge) || bookAge > 20_000) { score += 100; checks.push({ label: "Book freshness", status: "block", detail: "Order book is older than 20 seconds or has no timestamp" }); }
+  if (!book || !Number.isFinite(bookAge) || bookAge > 20_000) { score += 100; dimLiquidity += 100; checks.push({ label: "Book freshness", status: "block", detail: "Order book is older than 20 seconds or has no timestamp" }); }
   else checks.push({ label: "Book freshness", status: "pass", detail: `Snapshot age ${Math.max(0, Math.round(bookAge / 1000))}s` });
-  if (amount > 25 || amount <= 0) { score += 55; checks.push({ label: "Position size", status: "block", detail: amount > 25 ? "Hard limit is 25 shares" : "Enter a positive share amount" }); }
+  if (amount > 25 || amount <= 0) { score += 55; dimExposure += 55; checks.push({ label: "Position size", status: "block", detail: amount > 25 ? "Hard limit is 25 shares" : "Enter a positive share amount" }); }
   else checks.push({ label: "Position size", status: "pass", detail: `${amount.toFixed(3)} shares within 25-share limit` });
-  if (bestPrice == null || levels.length === 0) { score += 100; checks.push({ label: "Book liquidity", status: "block", detail: "No executable liquidity on the selected side" }); }
-  else if (estimatedFill == null) { score += 40; checks.push({ label: "Book liquidity", status: "block", detail: `Only ${visibleDepth.toFixed(3)} shares available at this limit` }); }
+  if (bestPrice == null || levels.length === 0) { score += 100; dimLiquidity += 100; checks.push({ label: "Book liquidity", status: "block", detail: "No executable liquidity on the selected side" }); }
+  else if (estimatedFill == null) { score += 40; dimLiquidity += 40; checks.push({ label: "Book liquidity", status: "block", detail: `Only ${visibleDepth.toFixed(3)} shares available at this limit` }); }
   else checks.push({ label: "Book liquidity", status: "pass", detail: `${visibleDepth.toFixed(3)} visible shares, estimated fill ${formatPct(estimatedFill)}` });
-  if (spreadBps == null) { score += 20; checks.push({ label: "Spread", status: "warn", detail: "Spread unavailable until both sides quote" }); }
-  else if (spreadBps > 500) { score += 25; checks.push({ label: "Spread", status: "warn", detail: `${spreadBps.toFixed(0)} bps wide` }); }
+  if (spreadBps == null) { score += 20; dimLiquidity += 20; checks.push({ label: "Spread", status: "warn", detail: "Spread unavailable until both sides quote" }); }
+  else if (spreadBps > 500) { score += 25; dimLiquidity += 25; checks.push({ label: "Spread", status: "warn", detail: `${spreadBps.toFixed(0)} bps wide` }); }
   else checks.push({ label: "Spread", status: "pass", detail: `${spreadBps.toFixed(0)} bps` });
-  if (slippageBps != null && slippageBps > 150) { score += 25; checks.push({ label: "Price impact", status: "block", detail: `${slippageBps.toFixed(0)} bps expected impact` }); }
+  if (slippageBps != null && slippageBps > 150) { score += 25; dimLiquidity += 25; checks.push({ label: "Price impact", status: "block", detail: `${slippageBps.toFixed(0)} bps expected impact` }); }
   else if (slippageBps != null) checks.push({ label: "Price impact", status: "pass", detail: `${slippageBps.toFixed(0)} bps from top of book` });
   if (side === "buy" && policy.maxCost != null) {
-    if (!Number.isFinite(policy.maxCost) || policy.maxCost <= 0) { score += 100; checks.push({ label: "Maximum downside", status: "block", detail: "Enter a positive tUSDC loss budget" }); }
-    else if (estimatedCost != null && estimatedCost > policy.maxCost + 1e-9) { score += 100; checks.push({ label: "Maximum downside", status: "block", detail: `${estimatedCost.toFixed(3)} tUSDC cost exceeds the ${policy.maxCost.toFixed(3)} tUSDC budget` }); }
+    if (!Number.isFinite(policy.maxCost) || policy.maxCost <= 0) { score += 100; dimMarket += 100; checks.push({ label: "Maximum downside", status: "block", detail: "Enter a positive tUSDC loss budget" }); }
+    else if (estimatedCost != null && estimatedCost > policy.maxCost + 1e-9) { score += 100; dimMarket += 100; checks.push({ label: "Maximum downside", status: "block", detail: `${estimatedCost.toFixed(3)} tUSDC cost exceeds the ${policy.maxCost.toFixed(3)} tUSDC budget` }); }
     else if (estimatedCost != null) checks.push({ label: "Maximum downside", status: "pass", detail: `${estimatedCost.toFixed(3)} tUSDC worst-case entry cost within budget` });
   }
-  if (minutesLeft(market.expiry) < 3) { score += 30; checks.push({ label: "Time to expiry", status: "block", detail: "Less than 3 minutes remaining" }); }
+  if (minutesLeft(market.expiry) < 3) { score += 30; dimMarket += 30; checks.push({ label: "Time to expiry", status: "block", detail: "Less than 3 minutes remaining" }); }
   else checks.push({ label: "Time to expiry", status: "pass", detail: `${minutesLeft(market.expiry)} minutes remaining` });
-  if (requestedPrice <= 0.08 || requestedPrice >= 0.92) { score += 20; checks.push({ label: "Tail pricing", status: "warn", detail: "Extreme probabilities require review" }); }
+  if (requestedPrice <= 0.08 || requestedPrice >= 0.92) { score += 20; dimMarket += 20; checks.push({ label: "Tail pricing", status: "warn", detail: "Extreme probabilities require review" }); }
   else checks.push({ label: "Tail pricing", status: "pass", detail: "Probability is inside the review band" });
-  if (wallet === null) { score += 100; checks.push({ label: "Wallet feasibility", status: "block", detail: "Wallet balances could not be verified" }); }
+  if (wallet === null) { score += 100; dimControl += 100; checks.push({ label: "Wallet feasibility", status: "block", detail: "Wallet balances could not be verified" }); }
   else if (wallet) {
     const projectedMarket = side === "buy" ? wallet.marketShares + amount : Math.max(0, wallet.marketShares - amount);
     const projectedGlobal = side === "buy" ? wallet.totalPortfolioShares + amount : Math.max(0, wallet.totalPortfolioShares - amount);
-    if (side === "buy" && projectedMarket > 25) { score += 55; checks.push({ label: "Market exposure", status: "block", detail: `Projected ${projectedMarket.toFixed(3)} shares exceeds the 25-share market limit` }); }
+    if (side === "buy" && projectedMarket > 25) { score += 55; dimExposure += 55; checks.push({ label: "Market exposure", status: "block", detail: `Projected ${projectedMarket.toFixed(3)} shares exceeds the 25-share market limit` }); }
     else checks.push({ label: "Market exposure", status: "pass", detail: `Projected ${projectedMarket.toFixed(3)} shares in this market` });
-    if (side === "buy" && projectedGlobal > 100) { score += 55; checks.push({ label: "Portfolio exposure", status: "block", detail: `Projected ${projectedGlobal.toFixed(3)} shares exceeds the 100-share portfolio limit` }); }
+    if (side === "buy" && projectedGlobal > 100) { score += 55; dimExposure += 55; checks.push({ label: "Portfolio exposure", status: "block", detail: `Projected ${projectedGlobal.toFixed(3)} shares exceeds the 100-share portfolio limit` }); }
     else checks.push({ label: "Portfolio exposure", status: "pass", detail: `Projected ${projectedGlobal.toFixed(3)} shares across markets` });
-    if (side === "sell" && wallet.sellBalance + 1e-9 < amount) { score += 100; checks.push({ label: "UP balance", status: "block", detail: `Only ${wallet.sellBalance.toFixed(3)} UP shares available` }); }
+    if (side === "sell" && wallet.sellBalance + 1e-9 < amount) { score += 100; dimCollateral += 100; checks.push({ label: "UP balance", status: "block", detail: `Only ${wallet.sellBalance.toFixed(3)} UP shares available` }); }
     else if (side === "sell") checks.push({ label: "UP balance", status: "pass", detail: `${wallet.sellBalance.toFixed(3)} UP shares available` });
-    if (side === "buy" && estimatedCost != null && wallet.collateralBalance + 1e-9 < estimatedCost) { score += 100; checks.push({ label: "Collateral", status: "block", detail: `${wallet.collateralBalance.toFixed(3)} ${wallet.collateralSymbol} available; ${estimatedCost.toFixed(3)} required` }); }
+    if (side === "buy" && estimatedCost != null && wallet.collateralBalance + 1e-9 < estimatedCost) { score += 100; dimCollateral += 100; checks.push({ label: "Collateral", status: "block", detail: `${wallet.collateralBalance.toFixed(3)} ${wallet.collateralSymbol} available; ${estimatedCost.toFixed(3)} required` }); }
     else if (side === "buy" && estimatedCost != null) checks.push({ label: "Collateral", status: "pass", detail: `${wallet.collateralBalance.toFixed(3)} ${wallet.collateralSymbol} available` });
     if (side === "buy" && estimatedCost != null && wallet.collateralAllowance + 1e-9 < estimatedCost) checks.push({ label: "Token approval", status: "warn", detail: `DreamDEX will request a maximum collateral approval before this order` });
     else if (side === "sell") checks.push({ label: "Operator approval", status: "warn", detail: "DreamDEX may request a one-time pool operator approval for outcome tokens" });
     else checks.push({ label: "Token approval", status: "pass", detail: "Existing collateral allowance covers this order" });
   }
-  return { allowed: score < 70 && checks.every((check) => check.status !== "block"), score: Math.min(100, score), checks, bestPrice, estimatedFill, estimatedCost, slippageBps, spreadBps, visibleDepth };
+  return {
+    allowed: score < 70 && checks.every((check) => check.status !== "block"),
+    score: Math.min(100, score),
+    checks,
+    dimensions: buildRiskDimensions(checks, [dimMarket, dimLiquidity, dimExposure, dimCollateral, dimControl]),
+    bestPrice,
+    estimatedFill,
+    estimatedCost,
+    slippageBps,
+    spreadBps,
+    visibleDepth,
+  };
+}
+
+/** Map checks + raw dimension penalties into the 5-dimension RiskDimensions model.
+ *  Checks are tagged to dimensions by label so the model stays derived from the
+ *  existing policy rather than duplicating threshold logic. */
+const DIMENSION_TAGS: Record<string, keyof RiskDimensions> = {
+  "Market status": "market",
+  "Time to expiry": "market",
+  "Tail pricing": "market",
+  "Book freshness": "liquidity",
+  "Book liquidity": "liquidity",
+  "Spread": "liquidity",
+  "Price impact": "liquidity",
+  "Position size": "exposure",
+  "Market exposure": "exposure",
+  "Portfolio exposure": "exposure",
+  "UP balance": "collateral",
+  "Collateral": "collateral",
+  "Token approval": "collateral",
+  "Operator approval": "collateral",
+  "Wallet feasibility": "control",
+  "Maximum downside": "market",
+};
+
+function buildRiskDimensions(
+  checks: RiskCheck[],
+  penalties: [number, number, number, number, number],
+): RiskDimensions {
+  const [m, l, e, c, ctrl] = penalties;
+  const byDim: Record<keyof RiskDimensions, RiskCheck[]> = {
+    market: [], liquidity: [], exposure: [], collateral: [], control: [],
+  };
+  for (const check of checks) {
+    (byDim[DIMENSION_TAGS[check.label] ?? "control"]).push(check);
+  }
+  const dimension = (score: number, status: "pass" | "warn" | "block", name: string): RiskDimension => ({
+    name, score: Math.min(100, score), status,
+  });
+  const statusOf = (items: RiskCheck[]): "pass" | "warn" | "block" =>
+    items.some((item) => item.status === "block") ? "block"
+    : items.some((item) => item.status === "warn") ? "warn"
+    : "pass";
+  return {
+    market: dimension(m, statusOf(byDim.market), "Market"),
+    liquidity: dimension(l, statusOf(byDim.liquidity), "Liquidity"),
+    exposure: dimension(e, statusOf(byDim.exposure), "Exposure"),
+    collateral: dimension(c, statusOf(byDim.collateral), "Collateral"),
+    control: dimension(ctrl, statusOf(byDim.control), "Control"),
+  };
+}
+
+export type DepthLevel = { price: number; quantity: number; cumulative: number };
+export type DepthLadder = { side: "buy" | "sell"; levels: DepthLevel[] };
+/** Build a depth ladder from the order book for a given side, showing cumulative
+ *  depth at each price level so the trade ticket can render a visual ladder. */
+export function depthLadder(book: UnifiedOrderBook | null, side: "buy" | "sell"): DepthLadder {
+  const levels = side === "buy" ? (book?.asks || []) : (book?.bids || []);
+  // For buys, reverse so best (lowest ask) is first; for sells, bids are already best-first.
+  const sorted = side === "buy" ? [...levels].reverse() : [...levels];
+  let cumulative = 0;
+  const result: DepthLevel[] = [];
+  for (const [price, quantity] of sorted) {
+    cumulative += quantity;
+    result.push({ price, quantity, cumulative });
+  }
+  return { side, levels: result };
 }
 
 /** Largest order size that passes the exact pre-signing policy and optional max-loss budget. */
@@ -270,4 +360,27 @@ export function safeOrderSize(market: DreamMarket, book: UnifiedOrderBook | null
     else high = mid - 1;
   }
   return best / 1_000;
+}
+
+/** Explain why Safe Size stops at a given order size. Returns the binding constraint
+ *  dimension and a human-readable reason, so the trade ticket can show
+ *  "Safe Size = 7.234 shares → bounded by liquidity" inline. */
+export function safeSizeConstraint(market: DreamMarket, book: UnifiedOrderBook | null, size: number, requestedPrice: number, side: "buy" | "sell", wallet?: WalletSnapshot | null, limits?: { maxCost?: number }): { dimension: string; reason: string } | null {
+  if (size <= 0 || !book) return null;
+  const preview = executionPreview(market, book, size + 0.001, requestedPrice, side, wallet, limits);
+  const blocking = preview.checks.filter((c) => c.status === "block");
+  if (!blocking.length) {
+    // Try the max to see what would block at the cap.
+    const maxPreview = executionPreview(market, book, 25.001, requestedPrice, side, wallet, limits);
+    const maxBlocking = maxPreview.checks.filter((c) => c.status === "block");
+    if (!maxBlocking.length) return { dimension: "Exposure", reason: "At the 25-share hard cap" };
+    const first = maxBlocking[0];
+    const dimKey = DIMENSION_TAGS[first.label] ?? "control";
+    const dimName = { market: "Market", liquidity: "Liquidity", exposure: "Exposure", collateral: "Collateral", control: "Control" }[dimKey];
+    return { dimension: dimName, reason: `At the 25-share hard cap (${first.label} blocks)` };
+  }
+  const first = blocking[0];
+  const dimKey = DIMENSION_TAGS[first.label] ?? "control";
+  const dimName = { market: "Market", liquidity: "Liquidity", exposure: "Exposure", collateral: "Collateral", control: "Control" }[dimKey];
+  return { dimension: dimName, reason: first.detail };
 }

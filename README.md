@@ -8,8 +8,11 @@ Live app: https://tajudeeen.github.io/sluice/
 
 - Consumer trading application: browse real binary Event Contracts and submit bounded IOC orders.
 - Market analytics: probability midpoint, spread, visible depth, hourly quote volume, and price history.
+- **5-dimension structural risk scoring**: the execution preview breaks down risk across Market, Liquidity, Exposure, Collateral, and Control dimensions, each scored 0–100 with pass/warn/block status — inspired by structural risk taxonomies used in institutional trading.
+- Visual order-book depth ladder in the trade ticket with a price slider that snaps to executable levels.
 - Event Contracts: lifecycle, outcome balances, fills, settlement, and transaction proofs come from DreamDEX.
-- Downside-capped Safe Size: convert a maximum-loss budget into the largest executable order passing Sluice's live policy at the selected limit.
+- Downside-capped Safe Size: convert a maximum-loss budget into the largest executable order passing Sluice's live policy at the selected limit, with inline explanation of the binding constraint.
+- Clickable execution trail with one-click explorer and portfolio links after every fill.
 
 ## What is verified before signing
 
