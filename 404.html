@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sluice Markets | DreamDEX Event Contracts</title>
+    <link rel="icon" type="image/svg+xml" href="/sluice/favicon.svg" />
+    <link rel="apple-touch-icon" href="/sluice/favicon.svg" />
+    <meta
+      name="description"
+      content="Inspect live DreamDEX Event Contracts, review execution checks, and trade on Somnia Shannon."
+    />
+    <script>
+      try {
+        const savedTheme = localStorage.getItem("dreamdex-theme");
+        const theme = savedTheme === "light" || savedTheme === "dark"
+          ? savedTheme
+          : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      } catch {}
+    </script>
+    <script type="module" crossorigin src="/sluice/assets/index-CYYqTqDz.js"></script>
+    <link rel="modulepreload" crossorigin href="/sluice/assets/rolldown-runtime-B0Z9INg1.js">
+    <link rel="modulepreload" crossorigin href="/sluice/assets/wallet-B3lAN8Na.js">
+    <link rel="stylesheet" crossorigin href="/sluice/assets/index-bFYXe2hy.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
