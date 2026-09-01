@@ -369,18 +369,39 @@ export function safeSizeConstraint(market: DreamMarket, book: UnifiedOrderBook |
   if (size <= 0 || !book) return null;
   const preview = executionPreview(market, book, size + 0.001, requestedPrice, side, wallet, limits);
   const blocking = preview.checks.filter((c) => c.status === "block");
+  const dimName = (label: string): string => {
+    const key = DIMENSION_TAGS[label] ?? "control";
+    return { market: "Market", liquidity: "Liquidity", exposure: "Exposure", collateral: "Collateral", control: "Control" }[key];
+  };
   if (!blocking.length) {
     // Try the max to see what would block at the cap.
     const maxPreview = executionPreview(market, book, 25.001, requestedPrice, side, wallet, limits);
     const maxBlocking = maxPreview.checks.filter((c) => c.status === "block");
     if (!maxBlocking.length) return { dimension: "Exposure", reason: "At the 25-share hard cap" };
     const first = maxBlocking[0];
-    const dimKey = DIMENSION_TAGS[first.label] ?? "control";
-    const dimName = { market: "Market", liquidity: "Liquidity", exposure: "Exposure", collateral: "Collateral", control: "Control" }[dimKey];
-    return { dimension: dimName, reason: `At the 25-share hard cap (${first.label} blocks)` };
+    return { dimension: dimName(first.label), reason: `At the 25-share hard cap (${first.label} blocks)` };
   }
   const first = blocking[0];
-  const dimKey = DIMENSION_TAGS[first.label] ?? "control";
-  const dimName = { market: "Market", liquidity: "Liquidity", exposure: "Exposure", collateral: "Collateral", control: "Control" }[dimKey];
-  return { dimension: dimName, reason: first.detail };
+  // Enrich liquidity constraints with explicit depth-at-price context.
+  if (first.label === "Book liquidity") {
+    const levels = side === "buy" ? (book?.asks || []) : (book?.bids || []);
+    const visibleDepth = levels.filter(([p]) => side === "buy" ? p <= requestedPrice : p >= requestedPrice).reduce((sum, [, q]) => sum + q, 0);
+    return { dimension: "Liquidity", reason: `Only ${visibleDepth.toFixed(3)} shares visible at the ${requestedPrice.toFixed(3)} limit; ${first.detail}` };
+  }
+  if (first.label === "Position size") {
+    return { dimension: "Exposure", reason: `Share amount ${size.toFixed(3)} exceeds the 25-share hard cap` };
+  }
+  if (first.label === "Market exposure" || first.label === "Portfolio exposure") {
+    return { dimension: "Exposure", reason: first.detail };
+  }
+  if (first.label === "Collateral") {
+    return { dimension: "Collateral", reason: first.detail };
+  }
+  if (first.label === "UP balance") {
+    return { dimension: "Collateral", reason: first.detail };
+  }
+  if (first.label === "Maximum downside") {
+    return { dimension: "Market", reason: first.detail };
+  }
+  return { dimension: dimName(first.label), reason: first.detail };
 }
