@@ -109,9 +109,22 @@ npm run frontend:build -- --base=/sluice/
 
 Pushes to `main` run the frontend typecheck, frontend tests, worker typecheck, agent tests, contract tests, and production Pages build before publishing `gh-pages`.
 
+## Documentation
+
+- [`docs/BUILD.md`](docs/BUILD.md) — full build documentation: what the product
+  is, the problems it solves, all features, how to use it, architecture, the Safe
+  Size algorithm, execution policy, on-chain enforcement, deployment, and
+  verification.
+- `docs/DORAHACKS-SUBMISSION.md` — submission positioning and rubric mapping.
+- `docs/PROOF-local-e2e.md` — real on-chain proof record for the legacy
+  SluiceGate escrow flow.
+- `docs/DREAMDEX-SDK-FEEDBACK.md` — SDK integration notes and troubleshooting.
+- `docs/DEMO-VIDEO-SCRIPT.md` — 2–3 minute demo walkthrough script.
+
 ## Repository layout
 
 - `frontend/`: submitted DreamDEX/Somnia React application.
+- `docs/`: build documentation, submission materials, and proof records.
 - `docs/LEGACY-FIREWALL.md`: archived reference for the earlier escrow demonstration.
 - `contracts/`, `agent/`, `worker/`: legacy local proof and optional services; not required by the DreamDEX market terminal.
 
