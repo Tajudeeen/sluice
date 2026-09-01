@@ -197,8 +197,11 @@ The frontend defaults to DreamDEX's public Shannon endpoints. No local
 ### Enabling the on-chain SluiceGate layer
 
 The live GitHub Pages build has `VITE_GATE_ADDRESS` and
-`VITE_ASSET_ADDRESS` inlined at build time from CI secrets, so the on-chain
-Safe Size enforcement layer is active in production.
+`VITE_ASSET_ADDRESS` inlined at build time by the CI workflow, so the on-chain
+Safe Size enforcement layer is active in production. The workflow reads these
+from repo secrets if set, falling back to the known deployed addresses
+(hardcoded in `wrangler.toml`), so the build always succeeds even without
+manual secret configuration.
 
 For local development, copy `.env.example` to `frontend/.env` and set the two
 addresses. When they are absent, the UI detects `CONFIGURED = false` and shows
@@ -411,8 +414,10 @@ elevated check. A score of 70+ or any BLOCK check prevents execution.
 
 The flagship "downside-capped Safe Size" enforcement runs through the
 SluiceGate + SluiceAsset contracts. The deployed GitHub Pages build reads
-`VITE_GATE_ADDRESS` and `VITE_ASSET_ADDRESS` at build time from CI secrets, so
-the live build is fully on-chain.
+`VITE_GATE_ADDRESS` and `VITE_ASSET_ADDRESS` at build time. The CI workflow
+reads these from repo secrets if set, falling back to the known deployed
+addresses (hardcoded in `wrangler.toml`), so the live build is always fully
+on-chain without manual secret configuration.
 
 ### Contract path
 
@@ -493,7 +498,7 @@ Pushes to `main` trigger the GitHub Actions workflow in
 7. Secret-safety verification (`npm run verify:secrets`)
 8. Worker dry-run validation (`npm run worker:dry-run`)
 9. SluiceGate address injection (`VITE_GATE_ADDRESS`, `VITE_ASSET_ADDRESS` from
-   repo secrets)
+   repo secrets, with fallback to known deployed addresses)
 10. Production Pages build (`npm run frontend:build -- --base=/sluice/`)
 11. SPA fallback (404.html for client-side routing)
 12. gh-pages publish
