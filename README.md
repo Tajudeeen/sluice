@@ -3,6 +3,7 @@
 Sluice Markets is a DreamDEX Event Contracts trading terminal for Somnia Shannon. Its differentiator is downside-capped Safe Size: the trader states the most tUSDC they are willing to lose, and Sluice compiles that budget into the largest order passing the live book, slippage, exposure, expiry, and collateral checks.
 
 Live app: https://tajudeeen.github.io/sluice/
+Demo video: https://youtu.be/5AdKiUbXddY?si=OZHcCCkT89VLRpC6
 
 ## Hackathon fit
 

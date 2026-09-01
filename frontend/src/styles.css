@@ -142,6 +142,8 @@ button { color: inherit; }
 :root[data-theme="dark"] .risk-breakdown .dim-label { color: #9db2a5; }
 :root[data-theme="dark"] .risk-breakdown .dim-score { color: #fff; }
 :root[data-theme="dark"] .depth-ladder { background: rgba(255, 254, 248, .04); }
+:root[data-theme="dark"] .verified-example { background: rgba(255, 254, 248, .04); }
+:root[data-theme="dark"] .verified-example .example-head span { color: #8fe0c8; }
 :root[data-theme="dark"] .portfolio-tabs button.active i { background: #10091e; color: #fff; }
 :root[data-theme="dark"] .portfolio-empty { background: rgba(21, 16, 32, .7); }
 :root[data-theme="dark"] .chart-empty { background: #151020; color: #c7bddf; }
@@ -309,6 +311,13 @@ button:disabled, .primary:disabled, .ghost:disabled { opacity: .45; cursor: not-
 
 /* Execution trail clickable link */
 .trail-link { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; color: var(--signal); font: 700 8px/1 var(--mono); letter-spacing: .05em; text-transform: uppercase; }
+
+/* Verified example (no wallet) */
+.verified-example { margin: 18px 0; padding: 16px; border: 1px solid var(--line); background: rgba(0, 0, 0, .02); }
+.verified-example .example-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.verified-example .example-head span { color: var(--signal-dark); font: 800 9px/1 var(--mono); letter-spacing: .05em; text-transform: uppercase; }
+.verified-example .example-head small { color: var(--slate); font: 600 9px/1 var(--mono); }
+.verified-example .example-note { margin-top: 14px; color: var(--slate); font: 600 10px/1.4 var(--mono); }
 
 /* Landing */
 .hero-splash {

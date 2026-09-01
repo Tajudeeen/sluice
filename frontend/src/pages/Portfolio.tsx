@@ -18,7 +18,43 @@ function lifecycle(market: DreamPortfolio["positions"][number]["market"]): strin
   return String(market.status || "SETTLING").toUpperCase();
 }
 
+/** Static replayable example for judges without a wallet.
+ *  Shows a real on-chain SluiceGate proof with tx links + execution trail. */
+const VERIFIED_APPROVE_TX = "0x1e717a091ba9650d7b31220d83d9999960de6266058435718b6279caf819a8b9";
+const VERIFIED_BLOCK_TX = "0x3ec7c594f86ddffa7e302851e00b4da47f75d887bc37c2172ee2025afd39dcfa";
 
+function VerifiedExample() {
+  return (
+    <div className="verified-example">
+      <div className="example-head">
+        <span>Verified example</span>
+        <small>No wallet required — real on-chain proof replay</small>
+      </div>
+      <div className="example-trail">
+        <div className="trail-item pass">
+          <i />
+          <span><b>Order signed</b><small>Downside-capped IOC on Somnia Shannon</small></span>
+          <time>demo</time>
+        </div>
+        <div className="trail-item pass">
+          <i />
+          <span><b>Policy approved</b><small>All execution checks passed</small></span>
+          <time>demo</time>
+        </div>
+        <div className="trail-item pass">
+          <i />
+          <span><b>Transaction confirmed</b><small>On-chain settlement</small></span>
+          <time>demo</time>
+          <a href={`${DREAMDEX_EXPLORER_URL}/tx/${VERIFIED_APPROVE_TX}`} target="_blank" rel="noreferrer" className="trail-link">Explorer ↗</a>
+          <a href={`${DREAMDEX_EXPLORER_URL}/tx/${VERIFIED_BLOCK_TX}`} target="_blank" rel="noreferrer" className="trail-link">Block tx ↗</a>
+        </div>
+      </div>
+      <p className="example-note">
+        Connects a Shannon wallet to see live positions, order history, and fills.
+      </p>
+    </div>
+  );
+}
 export default function Portfolio() {
   const { address } = useAccount();
   const [portfolio, setPortfolio] = useState<DreamPortfolio | null>(null);
@@ -61,11 +97,11 @@ export default function Portfolio() {
   const rows = tab === "positions" ? portfolio?.positions.length || 0 : tab === "orders" ? orders.length : sortedTrades.length;
   return <div className="app dreamdex-app"><div className="bg" aria-hidden="true" />
     <section className="pitch"><div className="section-kicker">DREAMDEX PORTFOLIO / SOMNIA SETTLEMENT</div><h1>Every position has<br /><em>a chain-sourced state.</em></h1><p>{status}</p><div className="console-status"><span><i /> {syncState === "connected" ? "Indexer connected" : syncState === "loading" ? "Syncing indexer" : syncState === "error" ? "Indexer error" : "Wallet required"}</span><span>{portfolio?.positions.length || 0} positions</span><span>{portfolio?.trades.length || 0} indexed fills</span></div></section>
-    <main className="grid"><section className="card wide portfolio-card"><div className="portfolio-head"><div><div className="card-label">ACCOUNT ACTIVITY</div><h2>Positions, order history, and execution history</h2></div><button className="ghost" onClick={refresh} disabled={!address}>Refresh indexer</button></div><div className="portfolio-tabs"><button className={tab === "positions" ? "active" : ""} onClick={() => setTab("positions")}>Positions <i>{portfolio?.positions.length || 0}</i></button><button className={tab === "orders" ? "active" : ""} onClick={() => setTab("orders")}>Order history <i>{orders.length}</i></button><button className={tab === "fills" ? "active" : ""} onClick={() => setTab("fills")}>Recent fills <i>{sortedTrades.length}</i></button></div>
+    <main className="grid"><section className="card wide portfolio-card"><div className="portfolio-head"><div><div className="card-label">ACCOUNT ACTIVITY</div><h2>Positions, order history, and execution history</h2></div><button className="ghost" onClick={refresh} disabled={!address}>Refresh indexer</button></div>{!address && <VerifiedExample />}<div className="portfolio-tabs"><button className={tab === "positions" ? "active" : ""} onClick={() => setTab("positions")}>Positions <i>{portfolio?.positions.length || 0}</i></button><button className={tab === "orders" ? "active" : ""} onClick={() => setTab("orders")}>Order history <i>{orders.length}</i></button><button className={tab === "fills" ? "active" : ""} onClick={() => setTab("fills")}>Recent fills <i>{sortedTrades.length}</i></button></div>
       {tab === "positions" && sortedPositions.map((position) => { const result = predictionOutcome(position.market, position.outcomeIndex); const latestOrder = orders.find((order) => order.market.toLowerCase() === position.market.id.toLowerCase()); return <div className="activity-row position-activity" key={`${position.market.id}-${position.outcomeIndex}`}><span><b>{position.market.asset} · {position.outcomeIndex === 0 ? "UP" : "DOWN"}</b><small>{position.market.question}</small><em>{latestOrder ? `Last order ${new Date(Number(latestOrder.placedAtTimestamp) * 1000).toLocaleString()}` : `Expires ${formatExpiry(position.market.expiry)} · ${position.market.interval || "event"}`}</em></span><span><small>Balance</small><strong>{units(position.balance, position.market.quoteDecimals)}</strong></span><span><small>State</small><i className={`state-pill ${position.market.status === "Trading" ? "live" : "settled"}`}>{lifecycle(position.market)}</i><em className={`outcome-result ${result.tone}`}>Outcome: {result.label}</em>{position.market.winningOutcome != null && <em>Winner: {position.market.winningOutcome === 0 ? "UP" : "DOWN"}</em>}</span></div>; })}
       {tab === "orders" && orders.map((order) => { const market = order.marketInfo; const decimals = market?.quoteDecimals ?? 6; const asset = market?.asset || "DreamDEX"; const question = market?.question || "Historical order"; const side = order.isBid ? "BUY" : "SELL"; return <div className="activity-row" key={order.id}><span><b>{asset} · {side}</b><small>{question}</small><em>Placed {new Date(Number(order.placedAtTimestamp) * 1000).toLocaleString()}</em></span><span><small>Remaining / filled</small><strong>{units(order.quantityRemaining, decimals)} / {units(order.filledQuantity, decimals)}</strong></span><span><small>Status · Limit</small><i className={`state-pill ${order.status === "Open" ? "live" : "settled"}`}>{order.status}</i><strong>{probability(order.price, decimals)}</strong><a href={txUrl(order.placedTxHash)} target="_blank" rel="noreferrer">Transaction ↗</a></span></div>; })}
       {tab === "fills" && sortedTrades.map((trade) => <div className="activity-row" key={trade.id}><span><b>{trade.market.asset} · {String(trade.side || "fill").toUpperCase()}</b><small>{trade.asMaker ? "Maker execution" : "Taker execution"} · {trade.market.interval || "event contract"}</small><em>{new Date(Number(trade.timestamp) * 1000).toLocaleString()}</em></span><span><small>Quantity</small><strong>{units(trade.quantity, trade.market.quoteDecimals)}</strong></span><span><small>Fill probability</small><strong>{probability(trade.fillPrice, trade.market.quoteDecimals)}</strong><a href={txUrl(trade.txHash)} target="_blank" rel="noreferrer">Proof ↗</a></span></div>)}
-      {!rows && <div className="portfolio-empty"><b>{address ? `No ${tab} indexed yet` : "Wallet not connected"}</b><p>{address ? "Execute a small IOC order from the terminal, then refresh once DreamDEX indexes the transaction." : "Connect your Somnia Shannon wallet from the navigation to inspect account activity."}</p></div>}<Link className="primary" to="/markets">Back to live markets</Link></section></main>
+      {!rows && <div className="portfolio-empty"><b>{address ? `No ${tab} indexed yet` : "Wallet not connected"}</b><p>{address ? "Execute a small IOC order from the terminal, then refresh once DreamDEX indexes the transaction." : "A verified on-chain proof is shown above. Connect your Somnia Shannon wallet from the navigation to inspect live account activity."}</p></div>}<Link className="primary" to="/markets">Back to live markets</Link></section></main>
     <footer className="foot">DreamDEX Event Contracts · fills, lifecycle, settlement, and transaction proof sourced from Somnia.</footer>
   </div>;
 }
